@@ -1,0 +1,32 @@
+.layout {
+  height: 100vh;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  margin-left: 24px;
+  color: #fff;
+  font-size: 16px;
+  height: 64px;
+  text-align: center;
+
+  > img {
+    width: 32px;
+    height: 32px;
+  }
+
+  .title {
+    margin-left: 16px;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  &-avatar {
+    margin-right: 24px;
+  }
+}

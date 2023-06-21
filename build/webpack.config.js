@@ -6,6 +6,7 @@ module.exports = {
   output: {
     path: path.resolve(__dirname, '../dist'),
     filename: 'bundle.js',
+    publicPath: '/'
   },
   module: {
     rules: [
@@ -30,13 +31,17 @@ module.exports = {
         test: /\.s[ac]ss$/i,
         use: ['style-loader', 'css-loader', 'sass-loader'],
       },
+      {
+        test: /\.(svg|png|jpg|gif)$/i,
+        type: 'asset/resource'
+      },
     ],
   },
   devServer: {
     port: 9000,
     // host: '127.0.0.1',
     // hot: true, // 开启热更新
-    // historyApiFallback: true,
+    historyApiFallback: true,
     // proxy: {
     //   '/': {
     //     target: 'http://localhost:9000/',
@@ -53,6 +58,7 @@ module.exports = {
     extensions: ['.js', '.jsx', '.ts', '.tsx'],
     alias: {
       '@pages': path.resolve(__dirname, '../src/pages'),
+      '@router': path.resolve(__dirname, '../src/router'),
     }
   }
 };
