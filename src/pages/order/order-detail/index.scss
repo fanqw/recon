@@ -1,0 +1,12 @@
+.category {
+  &-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  &-search {
+    width: 300px;
+  }
+}

@@ -1,16 +1,34 @@
 // src/router/index.tsx
+import Layout from '@pages/layout'
+import Login from '@pages/login'
+import { Spin } from 'antd'
 import React, { lazy, ReactNode, Suspense } from 'react'
 import { Navigate, RouteObject } from 'react-router-dom'
-import Login from '@pages/login'
-import Layout from '@pages/layout'
 const Category = lazy(() => import('@pages/category'))
 const Commodity = lazy(() => import('@pages/commodity'))
 const Unit = lazy(() => import('@pages/unit'))
 const Order = lazy(() => import('@pages/order'))
+const OrderDetail = lazy(() => import('@pages/order/order-detail'))
 const OrderCommodity = lazy(() => import('@pages/order-commodity'))
 
 const lazyLoad = (children: ReactNode): ReactNode => {
-  return <Suspense fallback={<h1>Loading...</h1>}>{children}</Suspense>
+  return (
+    <Suspense
+      fallback={
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginTop: '20%',
+          }}
+        >
+          <Spin />
+        </div>
+      }
+    >
+      {children}
+    </Suspense>
+  )
 }
 
 const routers: RouteObject[] = [
@@ -58,6 +76,10 @@ const routers: RouteObject[] = [
           {
             path: '/order/list',
             element: lazyLoad(<Order />),
+          },
+          {
+            path: '/order/detail/:id',
+            element: lazyLoad(<OrderDetail />),
           },
           {
             path: '/order',

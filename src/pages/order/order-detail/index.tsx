@@ -1,7 +1,7 @@
-import React, { useState } from 'react'
-import { Button, Card, Space, Table, Modal, Checkbox, Form, Input } from 'antd'
+import { Button, Card, Form, Input, Modal, Space, Table } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
+import React, { useState } from 'react'
 import './index.scss'
 
 const { Search } = Input
@@ -38,7 +38,7 @@ const data: DataType[] = [
   },
 ]
 
-const Commodity: React.FC = () => {
+const OrderDetail: React.FC = () => {
   const [open, setOpen] = useState(false)
   const onFinish = (values: any) => {
     console.log('Success:', values)
@@ -50,9 +50,27 @@ const Commodity: React.FC = () => {
 
   const columns: ColumnsType<DataType> = [
     {
+      title: '分类',
+      dataIndex: 'category',
+      key: 'category',
+      render: (text) => <a>{text}</a>,
+    },
+    {
       title: '名称',
       dataIndex: 'name',
       key: 'name',
+      render: (text) => <a>{text}</a>,
+    },
+    {
+      title: '单位',
+      dataIndex: 'unit',
+      key: 'unit',
+      render: (text) => <a>{text}</a>,
+    },
+    {
+      title: '单价',
+      dataIndex: 'price',
+      key: 'price',
       render: (text) => <a>{text}</a>,
     },
     {
@@ -75,6 +93,11 @@ const Commodity: React.FC = () => {
         value ? dayjs(value).format('YYYY-MM-DD HH:MM:ss') : '--',
     },
     {
+      title: '总金额',
+      dataIndex: 'total',
+      key: 'total',
+    },
+    {
       title: '操作',
       key: 'action',
       render: (_, record) => (
@@ -87,8 +110,8 @@ const Commodity: React.FC = () => {
   ]
   return (
     <>
-      <Card title="商品信息">
-        <div className="commodity-header">
+      <Card title="订单信息">
+        <div className="category-header">
           <Button type="primary" onClick={() => setOpen(true)}>
             新增
           </Button>
@@ -97,14 +120,14 @@ const Commodity: React.FC = () => {
             allowClear
             enterButton="搜索"
             size="middle"
-            className="commodity-search"
+            className="category-search"
             // onSearch={onSearch}
           />
         </div>
         <Table columns={columns} dataSource={data} />
       </Card>
       <Modal
-        title="新增商品"
+        title="新增商品种类"
         open={open}
         footer={false}
         onCancel={() => setOpen(false)}
@@ -120,7 +143,7 @@ const Commodity: React.FC = () => {
           autoComplete="off"
         >
           <Form.Item
-            label="商品名称"
+            label="品种名称"
             name="name"
             rules={[{ required: true, message: '请输入品种名称!' }]}
           >
@@ -142,4 +165,4 @@ const Commodity: React.FC = () => {
   )
 }
 
-export default Commodity
+export default OrderDetail
