@@ -17,7 +17,6 @@ export class CommodityService {
   }
 
   createCommodity = async (params: any) => {
-    debugger
     const res = await fetch(this.path, { method: 'POST', headers: {
       'content-type': 'application/json'
     }, body: JSON.stringify(params) })

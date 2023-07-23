@@ -7,7 +7,7 @@ import './index.scss'
 
 const { Search } = Input
 
-interface DataType {
+export interface DataType {
   id: string
   name: string
   desc: string
@@ -66,7 +66,7 @@ const Unit: React.FC = () => {
       handleCloseModal(true)
       return
     }
-    message.success('创建失败，请重试')
+    message.error('创建失败，请重试')
   }
 
   const handleUpdateUnit = async (id: string, values: any) => {
@@ -77,7 +77,7 @@ const Unit: React.FC = () => {
       handleCloseModal(true)
       return
     }
-    message.success('修改失败，请重试')
+    message.error('修改失败，请重试')
   }
 
   const handleRemove = async (id: string) => {
@@ -94,6 +94,7 @@ const Unit: React.FC = () => {
   }
 
   const onFinish = async (values: any) => {
+    setLoading(true)
     if (unitId) {
       handleUpdateUnit(unitId, values)
     } else {
