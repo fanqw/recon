@@ -1,14 +1,14 @@
-import React, { useEffect, useState } from 'react'
-import { Outlet, useLocation, useNavigate, matchRoutes } from 'react-router-dom'
-import { Layout, Breadcrumb, theme, Menu, Button, Avatar } from 'antd'
 import {
-  ProfileOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
   BankOutlined,
   DashboardOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  ProfileOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
+import { Avatar, Button, Layout, Menu, theme } from 'antd'
+import React, { useEffect, useState } from 'react'
+import { Outlet, matchRoutes, useLocation, useNavigate } from 'react-router-dom'
 import routers from '../../router'
 import './index.scss'
 // import logo from '../../asset/images/logo'
@@ -133,7 +133,7 @@ const Main: React.FC = () => {
           style={{
             padding: 24,
             margin: 0,
-            minHeight: 280,
+            minHeight: 'calc(100vh - 64px)',
           }}
         >
           {/* <Breadcrumb>
