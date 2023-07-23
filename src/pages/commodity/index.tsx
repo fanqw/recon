@@ -1,7 +1,7 @@
-import React, { useState } from 'react'
-import { Button, Card, Space, Table, Modal, Checkbox, Form, Input } from 'antd'
+import { Button, Card, Form, Input, Modal, Space, Table } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
+import React, { useState } from 'react'
 import './index.scss'
 
 const { Search } = Input
@@ -17,22 +17,22 @@ interface DataType {
 const data: DataType[] = [
   {
     key: '1',
-    name: '水果类',
-    desc: '新鲜水果',
+    name: '香蕉',
+    desc: '计件',
     update_at: new Date(),
     create_at: new Date(),
   },
   {
     key: '2',
-    name: '蔬菜类',
-    desc: '新鲜蔬菜',
+    name: '火龙果',
+    desc: '计件',
     update_at: new Date(),
     create_at: new Date(),
   },
   {
     key: '3',
-    name: '副食',
-    desc: '。。。',
+    name: '油桃',
+    desc: '斤',
     update_at: new Date(),
     create_at: new Date(),
   },

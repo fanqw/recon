@@ -1,8 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
-import { Route, Routes, BrowserRouter, useRoutes } from 'react-router-dom'
-import Login from '@pages/login'
-import Layout from '@pages/layout'
+import { BrowserRouter, useRoutes } from 'react-router-dom'
 import routers from './router'
 
 import './styles'

@@ -37,17 +37,18 @@ module.exports = {
       },
     ],
   },
+  devtool: 'source-map',
   devServer: {
     port: 9000,
     // host: '127.0.0.1',
     // hot: true, // 开启热更新
     historyApiFallback: true,
-    // proxy: {
-    //   '/': {
-    //     target: 'http://localhost:9000/',
-    //     changeOrigin: true,
-    //   },
-    // },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000/',
+        changeOrigin: true,
+      }
+    },
   },
   plugins: [
     new HtmlWebpackPlugin({
@@ -59,6 +60,7 @@ module.exports = {
     alias: {
       '@pages': path.resolve(__dirname, '../src/pages'),
       '@router': path.resolve(__dirname, '../src/router'),
+      '@services': path.resolve(__dirname, '../src/services'),
     }
   }
 };
