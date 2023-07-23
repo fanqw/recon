@@ -229,7 +229,7 @@ const Commodity: React.FC = () => {
               编辑
             </a>
             {loading ? (
-              <span style={{ color: '#999' }}>删除中...</span>
+              <span style={{ color: '#999' }}>删除</span>
             ) : (
               <a onClick={() => handleRemove(record.id)}>删除</a>
             )}
