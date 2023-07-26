@@ -39,7 +39,6 @@ const items: MenuProps['items'] = [
     getItem('商品信息', '/basic/commodity'),
   ]),
   getItem('订单管理', '/order', <ProfileOutlined />, [
-    getItem('订单商品', '/order/commodity'),
     getItem('订单列表', '/order/list'),
   ]),
 ]
@@ -69,7 +68,6 @@ const Main: React.FC = () => {
   }, [location.pathname])
 
   const onClick: MenuProps['onClick'] = (e) => {
-    console.log('click ', e)
     navigate(e.key, { replace: true })
   }
 
@@ -79,9 +77,6 @@ const Main: React.FC = () => {
   const {
     token: { colorBgContainer },
   } = theme.useToken()
-
-  console.log('selectedKeys', selectedKeys)
-  console.log('openKeys', openKeys)
 
   return (
     <Layout className="layout">

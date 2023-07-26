@@ -187,7 +187,7 @@ const Unit: React.FC = () => {
         />
       </Card>
       <Modal
-        title="新增商单位"
+        title={`${unitId ? '编辑' : '新增'}商品单位`}
         open={open}
         footer={false}
         onCancel={() => setOpen(false)}

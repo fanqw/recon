@@ -3,6 +3,7 @@ import { Button, Card, Form, Input, Modal, Space, Table, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import React, { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import './index.scss'
 
 const { Search } = Input
@@ -111,7 +112,7 @@ const Order: React.FC = () => {
       title: '名称',
       dataIndex: 'name',
       key: 'name',
-      render: (text) => <a>{text}</a>,
+      render: (text, record) => <span>{text}</span>,
     },
     {
       title: '说明',
@@ -139,6 +140,7 @@ const Order: React.FC = () => {
         const loading = removeLoading && record.id === orderId
         return (
           <Space size="middle">
+            <Link to={`/order/detail/${record.id}`}>详情</Link>
             <a
               onClick={() => {
                 setOrderId(record.id)
@@ -190,7 +192,7 @@ const Order: React.FC = () => {
         />
       </Card>
       <Modal
-        title="新增订单"
+        title={`${orderId ? '编辑' : '新增'}订单`}
         open={open}
         footer={false}
         onCancel={() => setOpen(false)}

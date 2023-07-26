@@ -1,4 +1,4 @@
-.category {
+.orderDetail {
   &-header {
     display: flex;
     justify-content: space-between;
@@ -8,5 +8,16 @@
 
   &-search {
     width: 300px;
+  }
+
+  &-table {
+    width: 900px;
+  }
+
+  &-showAction {
+    display: revert;
+  }
+  &-hiddenAction {
+    display: none;
   }
 }

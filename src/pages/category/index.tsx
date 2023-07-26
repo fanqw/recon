@@ -187,7 +187,7 @@ const Category: React.FC = () => {
         />
       </Card>
       <Modal
-        title="新增商品种类"
+        title={`${categoryId ? '编辑' : '新增'}商品种类`}
         open={open}
         footer={false}
         onCancel={() => setOpen(false)}

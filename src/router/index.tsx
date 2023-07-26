@@ -9,7 +9,6 @@ const Commodity = lazy(() => import('@pages/commodity'))
 const Unit = lazy(() => import('@pages/unit'))
 const Order = lazy(() => import('@pages/order'))
 const OrderDetail = lazy(() => import('@pages/order/order-detail'))
-const OrderCommodity = lazy(() => import('@pages/order-commodity'))
 
 const lazyLoad = (children: ReactNode): ReactNode => {
   return (
@@ -70,10 +69,6 @@ const routers: RouteObject[] = [
         path: '/order',
         children: [
           {
-            path: '/order/commodity',
-            element: lazyLoad(<OrderCommodity />),
-          },
-          {
             path: '/order/list',
             element: lazyLoad(<Order />),
           },
@@ -83,7 +78,7 @@ const routers: RouteObject[] = [
           },
           {
             path: '/order',
-            element: <Navigate to="/order/commodity" />,
+            element: <Navigate to="/order/list" />,
           },
           {
             path: '*',

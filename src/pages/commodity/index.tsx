@@ -22,7 +22,7 @@ import './index.scss'
 
 const { Search } = Input
 
-interface DataType {
+export interface DataType {
   id: string
   name: string
   desc: string
@@ -66,6 +66,7 @@ const Commodity: React.FC = () => {
       setCategoryList([])
     }
   }
+
   const handleUnitList = async () => {
     const res = await unitService.getUnitList()
     if (res.code === 200) {
@@ -270,10 +271,11 @@ const Commodity: React.FC = () => {
           loading={listLoading}
           columns={columns}
           dataSource={list}
+          pagination={false}
         />
       </Card>
       <Modal
-        title="新增商品"
+        title={`${commodityId ? '编辑' : '新增'}商品`}
         open={open}
         footer={false}
         onCancel={() => setOpen(false)}
