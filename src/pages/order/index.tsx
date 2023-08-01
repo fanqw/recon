@@ -115,7 +115,7 @@ const Order: React.FC = () => {
       render: (text, record) => <span>{text}</span>,
     },
     {
-      title: '说明',
+      title: '备注',
       dataIndex: 'desc',
       key: 'desc',
     },
@@ -176,7 +176,7 @@ const Order: React.FC = () => {
             新增
           </Button>
           <Search
-            placeholder="请输入名称、说明搜索"
+            placeholder="请输入名称、备注搜索"
             allowClear
             enterButton="搜索"
             size="middle"
@@ -216,8 +216,8 @@ const Order: React.FC = () => {
             <Input placeholder="请输入订单名称" />
           </Form.Item>
 
-          <Form.Item label="订单说明" name="desc">
-            <Input.TextArea placeholder="请输入订单说明" rows={5} />
+          <Form.Item label="订单备注" name="desc">
+            <Input.TextArea placeholder="请输入订单备注" rows={5} />
           </Form.Item>
 
           <Form.Item wrapperCol={{ offset: 10, span: 14 }}>

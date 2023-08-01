@@ -37,16 +37,16 @@ module.exports = {
       },
     ],
   },
-  devtool: 'source-map',
+  // devtool: 'source-map',
   devServer: {
     port: 9000,
-    // host: '127.0.0.1',
+    host: '192.168.31.162',
     // hot: true, // 开启热更新
     historyApiFallback: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:3000/',
-        changeOrigin: true,
+        target: 'http://192.168.31.162:3000/',
+        changeOrigin: true
       }
     },
   },

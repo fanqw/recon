@@ -114,7 +114,7 @@ const Unit: React.FC = () => {
       render: (text) => <a>{text}</a>,
     },
     {
-      title: '说明',
+      title: '备注',
       dataIndex: 'desc',
       key: 'desc',
     },
@@ -171,7 +171,7 @@ const Unit: React.FC = () => {
             新增
           </Button>
           <Search
-            placeholder="请输入名称、说明搜索"
+            placeholder="请输入名称、备注搜索"
             allowClear
             enterButton="搜索"
             size="middle"
@@ -211,8 +211,8 @@ const Unit: React.FC = () => {
             <Input placeholder="请输入单位名称" />
           </Form.Item>
 
-          <Form.Item label="单位说明" name="desc">
-            <Input.TextArea placeholder="请输入单位说明" rows={5} />
+          <Form.Item label="单位备注" name="desc">
+            <Input.TextArea placeholder="请输入单位备注" rows={5} />
           </Form.Item>
 
           <Form.Item wrapperCol={{ offset: 10, span: 14 }}>

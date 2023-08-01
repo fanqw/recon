@@ -191,7 +191,7 @@ const Commodity: React.FC = () => {
       ),
     },
     {
-      title: '说明',
+      title: '备注',
       dataIndex: 'desc',
       key: 'desc',
     },
@@ -258,7 +258,7 @@ const Commodity: React.FC = () => {
             新增
           </Button>
           <Search
-            placeholder="请输入名称、说明搜索"
+            placeholder="请输入名称、备注搜索"
             allowClear
             enterButton="搜索"
             size="middle"
@@ -333,8 +333,8 @@ const Commodity: React.FC = () => {
             />
           </Form.Item>
 
-          <Form.Item label="商品说明" name="desc">
-            <Input.TextArea placeholder="请输入商品说明" rows={5} />
+          <Form.Item label="商品备注" name="desc">
+            <Input.TextArea placeholder="请输入商品备注" rows={5} />
           </Form.Item>
 
           <Form.Item wrapperCol={{ offset: 10, span: 14 }}>
