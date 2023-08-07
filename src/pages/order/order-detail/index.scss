@@ -11,12 +11,27 @@
   }
 
   &-table {
-    width: 900px;
+    table,
+    th,
+    td {
+      font-size: 24px;
+      border: 1px solid #333 !important;
+    }
+
+    th {
+      padding-bottom: 24px !important;
+    }
+
+    td > div {
+      margin-top: -18px !important;
+    }
   }
 
   &-showAction {
     display: revert;
+    width: 120px;
   }
+
   &-hiddenAction {
     display: none;
   }

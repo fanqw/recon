@@ -3,6 +3,7 @@ import { DataType as CommodityDataType } from '@pages/commodity'
 import { DataType as UnitDataType } from '@pages/unit'
 import commodityService from '@services/commodity.service'
 import orderCommodityService from '@services/order-commodity.service'
+import orderService from '@services/order.service'
 import {
   Button,
   Card,
@@ -36,19 +37,22 @@ interface DataType {
   update_at: Date
 }
 
+interface OrderDetail {
+  name: string
+  desc: string
+}
+
 const OrderDetail: React.FC = () => {
   const [form] = Form.useForm()
   const params = useParams()
   const orderId = params.id || ''
-  const [commodityList, setCommodityList] = useState([])
+  const [orderDetail, setOrderDetail] = useState<OrderDetail>({
+    name: '',
+    desc: '',
+  })
+  const [commodityList, setCommodityList] = useState<DataType[]>([])
   const [list, setList] = useState([])
   const [open, setOpen] = useState(false)
-  // const [modalData, setModalData] = useState({
-  //   commodity_id: undefined,
-  //   count: undefined,
-  //   price: undefined,
-  //   desc: '',
-  // })
   const [orderCommodityId, setOrderCommodityId] = useState('')
   const [listLoading, setListLoading] = useState(true)
   const [modalLoading, setModalLoading] = useState(false)
@@ -56,9 +60,22 @@ const OrderDetail: React.FC = () => {
   const [showAction, setShowAction] = useState(true)
 
   useEffect(() => {
+    handleOrderDetail(orderId)
     handleOrderCommodityList(orderId)
     handleCommodityList()
   }, [])
+
+  const handleOrderDetail = async (id: string) => {
+    const res = await orderService.getOrder(id)
+    if (res.code === 200) {
+      setOrderDetail(res.data)
+    } else {
+      setOrderDetail({
+        name: '',
+        desc: '',
+      })
+    }
+  }
 
   const handleOrderCommodityList = async (id: string) => {
     setListLoading(true)
@@ -167,7 +184,7 @@ const OrderDetail: React.FC = () => {
 
   const convertToImage = async (container: any, options?: any) => {
     // 设置放大倍数
-    const scale = window.devicePixelRatio
+    const scale = window.devicePixelRatio * 2
 
     // 传入节点原始宽高
     const _width = container.offsetWidth
@@ -179,20 +196,23 @@ const OrderDetail: React.FC = () => {
 
     // html2canvas配置项
     const ops = {
+      ...options,
       scale,
-      // width,
-      // height,
       useCORS: true,
       allowTaint: false,
-      ...options,
+      width,
+      height,
     }
+
+    // console.log('ops', ops)
+    // console.log('container', container)
 
     return html2canvas(container, ops).then((canvas) => {
       // 返回图片的二进制数据
       return canvas.toBlob((blob: any) => {
         const element = document.createElement('a')
         const url = URL.createObjectURL(blob)
-        element.download = `${orderId}.png`
+        element.download = `${orderDetail.name}.png`
         element.style.display = 'none'
         element.href = url
         document.body.appendChild(element)
@@ -206,10 +226,10 @@ const OrderDetail: React.FC = () => {
     setShowAction(false)
     setTimeout(() => {
       // 调用函数，取到截图的二进制数据，对图片进行处理（保存本地、展示等）
-      convertToImage(
-        document.getElementsByClassName('ant-table-content')[0],
-        {}
-      ).then((res) => {
+      convertToImage(document.getElementById('table'), {
+        width: 1240,
+        height: 1754,
+      }).then((res) => {
         setShowAction(true)
       })
     }, 0)
@@ -264,9 +284,26 @@ const OrderDetail: React.FC = () => {
       render: (text) => <div>{text}</div>,
     },
     {
+      title: '金额',
+      dataIndex: 'total_price',
+      key: 'total_price',
+      render: (totalPrice, record: any) => {
+        return (
+          <div
+            style={{
+              color: totalPrice !== record?.origin_total_price ? 'red' : '#333',
+            }}
+          >
+            {totalPrice}
+          </div>
+        )
+      },
+    },
+    {
       title: '备注',
       dataIndex: 'desc',
       key: 'desc',
+      render: (text) => <div>{text}</div>,
     },
     // {
     //   title: '更新时间',
@@ -283,25 +320,10 @@ const OrderDetail: React.FC = () => {
     //     value ? dayjs(value).format('YYYY-MM-DD HH:MM:ss') : '--',
     // },
     {
-      title: '金额',
-      dataIndex: 'total_price',
-      key: 'total_price',
-      render: (totalPrice, record: any) => {
-        return (
-          <span
-            style={{
-              color: totalPrice !== record?.origin_total_price ? 'red' : '#333',
-            }}
-          >
-            {totalPrice}
-          </span>
-        )
-      },
-    },
-    {
       title: '分类金额',
       dataIndex: 'total_category_price',
       key: 'total_category_price',
+      // width: 150,
       onCell: (record, rowIndex) => {
         let rowSpan = 0
         if (
@@ -319,11 +341,13 @@ const OrderDetail: React.FC = () => {
           rowSpan,
         }
       },
+      render: (text) => <div>{text}</div>,
     },
     {
       title: '总金额',
       dataIndex: 'total_order_price',
       key: 'total_order_price',
+      // width: 150,
       onCell: (_record, rowIndex) => {
         let rowSpan = 0
         if (rowIndex === 0) {
@@ -371,23 +395,30 @@ const OrderDetail: React.FC = () => {
 
   return (
     <>
-      <Card title="订单信息">
+      <Card
+        title="订单信息"
+        extra={<Button onClick={() => history.back()}>返回</Button>}
+      >
         <div className="orderDetail-header">
-          <Button
-            type="primary"
-            onClick={() => {
-              setOrderCommodityId('')
-              handleOpenModal({
-                commodity_id: undefined,
-                count: undefined,
-                price: undefined,
-                desc: '',
-              })
-            }}
-          >
-            新增
-          </Button>
-          <Button onClick={() => handleClick()}>下载</Button>
+          <div>
+            <Button
+              type="primary"
+              onClick={() => {
+                setOrderCommodityId('')
+                handleOpenModal({
+                  commodity_id: undefined,
+                  count: undefined,
+                  price: undefined,
+                  desc: '',
+                })
+              }}
+            >
+              新增
+            </Button>
+            <Button style={{ marginLeft: 16 }} onClick={() => handleClick()}>
+              下载
+            </Button>
+          </div>
           <Search
             placeholder="请输入名称、备注搜索"
             allowClear
@@ -397,6 +428,7 @@ const OrderDetail: React.FC = () => {
           />
         </div>
         <Table
+          id="table"
           rowKey="id"
           loading={listLoading}
           columns={columns}
@@ -405,6 +437,13 @@ const OrderDetail: React.FC = () => {
           size="small"
           pagination={false}
           className={showAction ? '' : 'orderDetail-table'}
+          summary={() => (
+            <Table.Summary.Row>
+              <Table.Summary.Cell index={0} colSpan={showAction ? 10 : 9}>
+                <div>{orderDetail.desc}</div>
+              </Table.Summary.Cell>
+            </Table.Summary.Row>
+          )}
         />
       </Card>
       <Modal

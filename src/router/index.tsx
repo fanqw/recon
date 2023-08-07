@@ -70,11 +70,16 @@ const routers: RouteObject[] = [
         children: [
           {
             path: '/order/list',
-            element: lazyLoad(<Order />),
-          },
-          {
-            path: '/order/detail/:id',
-            element: lazyLoad(<OrderDetail />),
+            children: [
+              {
+                path: '/order/list',
+                element: lazyLoad(<Order />),
+              },
+              {
+                path: '/order/list/:id',
+                element: lazyLoad(<OrderDetail />),
+              },
+            ],
           },
           {
             path: '/order',

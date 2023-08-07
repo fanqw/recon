@@ -112,12 +112,16 @@ const Order: React.FC = () => {
       title: '名称',
       dataIndex: 'name',
       key: 'name',
-      render: (text, record) => <span>{text}</span>,
+      render: (text, record) => (
+        <Link to={`/order/list/${record.id}`}>{text}</Link>
+      ),
     },
     {
       title: '备注',
       dataIndex: 'desc',
       key: 'desc',
+      ellipsis: true,
+      width: 400,
     },
     {
       title: '更新时间',
@@ -140,7 +144,6 @@ const Order: React.FC = () => {
         const loading = removeLoading && record.id === orderId
         return (
           <Space size="middle">
-            <Link to={`/order/detail/${record.id}`}>详情</Link>
             <a
               onClick={() => {
                 setOrderId(record.id)
