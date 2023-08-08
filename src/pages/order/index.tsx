@@ -1,12 +1,10 @@
-import orderService from '@services/order.service'
+import orderService, { Params } from '@services/order.service'
 import { Button, Card, Form, Input, Modal, Space, Table, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import './index.scss'
-
-const { Search } = Input
 
 export interface DataType {
   id: string
@@ -18,6 +16,9 @@ export interface DataType {
 
 const Order: React.FC = () => {
   const [list, setList] = useState([])
+  const [current, setCurrent] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [total, setTotal] = useState(0)
   const [modalData, setModalData] = useState({
     name: '',
     desc: '',
@@ -28,17 +29,22 @@ const Order: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [removeLoading, setRemoveLoading] = useState(false)
   useEffect(() => {
-    handleOrderList()
+    handleOrderList({
+      current,
+      pageSize,
+    })
   }, [])
 
-  const handleOrderList = async () => {
+  const handleOrderList = async (params: Params) => {
     setListLoading(true)
-    const res = await orderService.getOrderList()
+    const res = await orderService.getOrderList(params)
     setListLoading(false)
     if (res.code === 200) {
-      setList(res.data)
+      setList(res.data.rows)
+      setTotal(res.data.total)
     } else {
       setList([])
+      setTotal(0)
     }
   }
 
@@ -55,7 +61,10 @@ const Order: React.FC = () => {
     setOrderId('')
     setOpen(false)
     if (refresh) {
-      handleOrderList()
+      handleOrderList({
+        current,
+        pageSize,
+      })
     }
   }
 
@@ -88,7 +97,10 @@ const Order: React.FC = () => {
     setRemoveLoading(false)
     if (res?.code === 200) {
       message.success('删除成功')
-      handleOrderList()
+      handleOrderList({
+        current,
+        pageSize,
+      })
     } else {
       message.error(`删除失败，失败原因：${res.message}`)
     }
@@ -105,6 +117,18 @@ const Order: React.FC = () => {
 
   const onFinishFailed = (errorInfo: any) => {
     console.log('Failed:', errorInfo)
+  }
+
+  const onPageChange = (page: number, _pageSize: number) => {
+    setCurrent(page)
+    handleOrderList({
+      current: page,
+      pageSize,
+    })
+  }
+
+  const onShowSizeChange = (_page: number, pageSize: number) => {
+    setPageSize(pageSize)
   }
 
   const columns: ColumnsType<DataType> = [
@@ -166,6 +190,7 @@ const Order: React.FC = () => {
     <>
       <Card title="订单列表">
         <div className="order-header">
+          <div style={{ height: 24, lineHeight: 1.5 }}>共 {total} 项</div>
           <Button
             type="primary"
             onClick={() => {
@@ -178,20 +203,19 @@ const Order: React.FC = () => {
           >
             新增
           </Button>
-          <Search
-            placeholder="请输入名称、备注搜索"
-            allowClear
-            enterButton="搜索"
-            size="middle"
-            className="order-search"
-            // onSearch={onSearch}
-          />
         </div>
         <Table
           rowKey="id"
           loading={listLoading}
           columns={columns}
           dataSource={list}
+          pagination={{
+            current,
+            pageSize,
+            total,
+            onChange: onPageChange,
+            onShowSizeChange,
+          }}
         />
       </Card>
       <Modal

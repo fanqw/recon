@@ -42,6 +42,8 @@ interface OrderDetail {
   desc: string
 }
 
+const max = 50
+
 const OrderDetail: React.FC = () => {
   const [form] = Form.useForm()
   const params = useParams()
@@ -89,9 +91,12 @@ const OrderDetail: React.FC = () => {
   }
 
   const handleCommodityList = async () => {
-    const res = await commodityService.getCommodityList()
+    const res = await commodityService.getCommodityList({
+      current: 1,
+      pageSize: 10000,
+    })
     if (res.code === 200) {
-      const data = res.data.map((item: any) => ({
+      const data = res.data.rows.map((item: any) => ({
         value: item.id,
         label: `${item.name}（${item.unit.name}）`,
       }))
@@ -174,7 +179,7 @@ const OrderDetail: React.FC = () => {
 
   const handleTotalPrice = (value: number | null) => {
     const count = form.getFieldValue('count') || 0
-    const price = Math.round(((value || 0) * 1000) / count) / 1000
+    const price = Math.round(((value || 0) * 10000) / count) / 10000
     form.setFieldValue('price', price)
   }
 
@@ -400,6 +405,14 @@ const OrderDetail: React.FC = () => {
         extra={<Button onClick={() => history.back()}>返回</Button>}
       >
         <div className="orderDetail-header">
+          <div style={{ display: 'flex', height: 24, lineHeight: 1.5 }}>
+            <div>共 {list.length} 项</div>
+            {list.length > max && (
+              <div style={{ color: 'red', fontWeight: 'bold', marginLeft: 36 }}>
+                订单商品已录入{max}条，超出部分可能无法打印！！！
+              </div>
+            )}
+          </div>
           <div>
             <Button
               type="primary"
@@ -415,17 +428,14 @@ const OrderDetail: React.FC = () => {
             >
               新增
             </Button>
-            <Button style={{ marginLeft: 16 }} onClick={() => handleClick()}>
+            <Button
+              style={{ marginLeft: 16 }}
+              onClick={() => handleClick()}
+              type="primary"
+            >
               下载
             </Button>
           </div>
-          <Search
-            placeholder="请输入名称、备注搜索"
-            allowClear
-            enterButton="搜索"
-            size="middle"
-            className="orderDetail-search"
-          />
         </div>
         <Table
           id="table"
@@ -437,13 +447,14 @@ const OrderDetail: React.FC = () => {
           size="small"
           pagination={false}
           className={showAction ? '' : 'orderDetail-table'}
-          summary={() => (
-            <Table.Summary.Row>
-              <Table.Summary.Cell index={0} colSpan={showAction ? 10 : 9}>
-                <div>{orderDetail.desc}</div>
-              </Table.Summary.Cell>
-            </Table.Summary.Row>
-          )}
+          title={() => <div>{orderDetail.desc}</div>}
+          // summary={() => (
+          //   <Table.Summary.Row>
+          //     <Table.Summary.Cell index={0} colSpan={showAction ? 10 : 9}>
+          //       <div>{orderDetail.desc}</div>
+          //     </Table.Summary.Cell>
+          //   </Table.Summary.Row>
+          // )}
         />
       </Card>
       <Modal

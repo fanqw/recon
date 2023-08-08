@@ -1,3 +1,8 @@
+export interface Params {
+  current: number
+  pageSize: number
+  search?: string
+}
 
 export class CommodityService {
   path: string;
@@ -6,8 +11,14 @@ export class CommodityService {
     this.path = '/api/commodities';
   }
 
-  getCommodityList = async () => {
-    const res = await fetch(this.path)
+  getCommodityList = async (params: Params) => {
+    const res = await fetch(`${this.path}/list`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify(params),
+    })
     return res.json();
   }
 

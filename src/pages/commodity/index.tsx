@@ -1,7 +1,7 @@
 import { DataType as CategoryDateType } from '@pages/category'
 import { DataType as UnitDateType } from '@pages/unit'
 import categoryService from '@services/category.service'
-import commodityService from '@services/commodity.service'
+import commodityService, { Params } from '@services/commodity.service'
 import unitService from '@services/unit.service'
 import {
   Button,
@@ -36,6 +36,10 @@ const Commodity: React.FC = () => {
   const [categoryList, setCategoryList] = useState([])
   const [unitList, setUnitList] = useState([])
   const [list, setList] = useState([])
+  const [current, setCurrent] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [total, setTotal] = useState(0)
+  const [search, setSearch] = useState('')
   const [modalData, setModalData] = useState({
     name: '',
     category_id: undefined,
@@ -50,7 +54,11 @@ const Commodity: React.FC = () => {
 
   useEffect(() => {
     handleCategoryList()
-    handleCommodityList()
+    handleCommodityList({
+      current,
+      pageSize,
+      search,
+    })
     handleUnitList()
   }, [])
 
@@ -80,14 +88,16 @@ const Commodity: React.FC = () => {
     }
   }
 
-  const handleCommodityList = async () => {
+  const handleCommodityList = async (params: Params) => {
     setListLoading(true)
-    const res = await commodityService.getCommodityList()
+    const res = await commodityService.getCommodityList(params)
     setListLoading(false)
     if (res.code === 200) {
-      setList(res.data)
+      setList(res.data.rows)
+      setTotal(res.data.total)
     } else {
       setList([])
+      setTotal(0)
     }
   }
 
@@ -106,7 +116,11 @@ const Commodity: React.FC = () => {
     setCommodityId('')
     setOpen(false)
     if (refresh) {
-      handleCommodityList()
+      handleCommodityList({
+        current,
+        pageSize,
+        search,
+      })
     }
   }
 
@@ -118,7 +132,7 @@ const Commodity: React.FC = () => {
       handleCloseModal(true)
       return
     }
-    message.error('创建失败，请重试')
+    message.error(`创建失败，失败原因：${res.message}`)
   }
 
   const handleUpdateCommodity = async (id: string, values: any) => {
@@ -130,7 +144,7 @@ const Commodity: React.FC = () => {
       return
     }
 
-    message.error('修改失败，请重试')
+    message.error(`修改失败，失败原因：${res.message}`)
   }
 
   const handleRemove = async (id: string) => {
@@ -140,7 +154,11 @@ const Commodity: React.FC = () => {
     setRemoveLoading(false)
     if (res?.code === 200) {
       message.success('删除成功')
-      handleCommodityList()
+      handleCommodityList({
+        current,
+        pageSize,
+        search,
+      })
     } else {
       message.error(`删除失败，失败原因：${res.message}`)
     }
@@ -159,12 +177,40 @@ const Commodity: React.FC = () => {
     console.log('Failed:', errorInfo)
   }
 
+  const onSearchChange = (e: any) => {
+    const { value } = e.target
+    const val = value.trim()
+    setSearch(val)
+  }
+
+  const onSearch = (value: string) => {
+    setCurrent(1)
+    handleCommodityList({
+      current: 1,
+      pageSize,
+      search: value,
+    })
+  }
+
+  const onPageChange = (page: number, _pageSize: number) => {
+    setCurrent(page)
+    handleCommodityList({
+      current: page,
+      pageSize,
+      search,
+    })
+  }
+
+  const onShowSizeChange = (_page: number, pageSize: number) => {
+    setPageSize(pageSize)
+  }
+
   const columns: ColumnsType<DataType> = [
     {
       title: '名称',
       dataIndex: 'name',
       key: 'name',
-      render: (text) => <a>{text}</a>,
+      render: (text) => <a style={{ cursor: 'default' }}>{text}</a>,
     },
     {
       title: '分类',
@@ -243,35 +289,47 @@ const Commodity: React.FC = () => {
     <>
       <Card title="商品信息">
         <div className="commodity-header">
-          <Button
-            type="primary"
-            onClick={() => {
-              setCommodityId('')
-              handleOpenModal({
-                name: '',
-                desc: '',
-                category_id: undefined,
-                unit_id: undefined,
-              })
-            }}
-          >
-            新增
-          </Button>
-          <Search
-            placeholder="请输入名称、备注搜索"
-            allowClear
-            enterButton="搜索"
-            size="middle"
-            className="commodity-search"
-            // onSearch={onSearch}
-          />
+          <div style={{ height: 24, lineHeight: 1.5 }}>共 {total} 项</div>
+          <div>
+            <Button
+              type="primary"
+              style={{ marginRight: 16 }}
+              onClick={() => {
+                setCommodityId('')
+                handleOpenModal({
+                  name: '',
+                  desc: '',
+                  category_id: undefined,
+                  unit_id: undefined,
+                })
+              }}
+            >
+              新增
+            </Button>
+            <Search
+              placeholder="请输入名称、备注搜索"
+              allowClear
+              enterButton="搜索"
+              value={search}
+              size="middle"
+              className="commodity-search"
+              onChange={onSearchChange}
+              onSearch={onSearch}
+            />
+          </div>
         </div>
         <Table
           rowKey="id"
           loading={listLoading}
           columns={columns}
           dataSource={list}
-          pagination={false}
+          pagination={{
+            current,
+            pageSize,
+            total,
+            onChange: onPageChange,
+            onShowSizeChange,
+          }}
         />
       </Card>
       <Modal

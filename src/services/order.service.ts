@@ -1,3 +1,7 @@
+export interface Params {
+  current: number;
+  pageSize: number;
+}
 
 export class OrderService {
   path: string;
@@ -6,8 +10,14 @@ export class OrderService {
     this.path = '/api/orders';
   }
 
-  getOrderList = async () => {
-    const res = await fetch(this.path)
+  getOrderList = async (params: Params) => {
+    const res = await fetch(`${this.path}/list`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify(params) 
+    })
     return res.json();
   }
 
