@@ -512,7 +512,7 @@ const OrderDetail: React.FC = () => {
               style={{ width: '100% ' }}
               placeholder="请输入商品单价"
               onChange={handleChangePrice}
-              min={0}
+              // min={0}
             />
           </Form.Item>
           <Form.Item label="商品总价" name="total_price">
@@ -521,7 +521,7 @@ const OrderDetail: React.FC = () => {
               style={{ width: '100% ' }}
               placeholder="请输入商品总价"
               onChange={handleTotalPrice}
-              min={0}
+              // min={0}
             />
           </Form.Item>
 
