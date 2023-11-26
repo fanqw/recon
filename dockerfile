@@ -5,7 +5,7 @@ FROM node:14 as build-stage
 WORKDIR /app
 
 # 复制 package.json 和 package-lock.json 到容器中
-COPY package*.json .
+COPY package*.json /app/
 
 # 安装依赖
 RUN npm install

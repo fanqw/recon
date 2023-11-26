@@ -136,6 +136,7 @@ const Order: React.FC = () => {
       title: '名称',
       dataIndex: 'name',
       key: 'name',
+      width: 200,
       render: (text, record) => (
         <Link to={`/order/list/${record.id}`}>{text}</Link>
       ),
@@ -145,12 +146,12 @@ const Order: React.FC = () => {
       dataIndex: 'desc',
       key: 'desc',
       ellipsis: true,
-      width: 400,
     },
     {
       title: '更新时间',
       dataIndex: 'update_at',
       key: 'update_at',
+      width: 200,
       render: (value) =>
         value ? dayjs(value).format('YYYY-MM-DD HH:MM:ss') : '--',
     },
@@ -158,12 +159,14 @@ const Order: React.FC = () => {
       title: '创建时间',
       dataIndex: 'create_at',
       key: 'create_at',
+      width: 200,
       render: (value) =>
         value ? dayjs(value).format('YYYY-MM-DD HH:MM:ss') : '--',
     },
     {
       title: '操作',
       key: 'action',
+      width: 120,
       render: (_, record) => {
         const loading = removeLoading && record.id === orderId
         return (
@@ -216,6 +219,7 @@ const Order: React.FC = () => {
             onChange: onPageChange,
             onShowSizeChange,
           }}
+          scroll={list.length > 0 ? { x: 1000 } : undefined}
         />
       </Card>
       <Modal
