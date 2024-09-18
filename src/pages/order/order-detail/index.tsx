@@ -447,7 +447,13 @@ const OrderDetail: React.FC = () => {
           size="small"
           pagination={false}
           className={showAction ? '' : 'orderDetail-table'}
-          title={() => <div>{orderDetail.desc}</div>}
+          title={() => (
+            <div
+              style={{ fontSize: 18, fontWeight: 'bold', textAlign: 'center' }}
+            >
+              {orderDetail.desc}
+            </div>
+          )}
           // summary={() => (
           //   <Table.Summary.Row>
           //     <Table.Summary.Cell index={0} colSpan={showAction ? 10 : 9}>
