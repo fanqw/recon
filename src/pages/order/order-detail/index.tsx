@@ -449,7 +449,7 @@ const OrderDetail: React.FC = () => {
           className={showAction ? '' : 'orderDetail-table'}
           title={() => (
             <div
-              style={{ fontSize: 18, fontWeight: 'bold', textAlign: 'center' }}
+              style={{ fontSize: 22, fontWeight: 'bold', textAlign: 'center' }}
             >
               {orderDetail.desc}
             </div>
