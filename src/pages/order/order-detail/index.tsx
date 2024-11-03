@@ -362,6 +362,7 @@ const OrderDetail: React.FC = () => {
           rowSpan,
         }
       },
+      render: (value: string) => <span style={{ fontSize: 22, fontWeight: 'bold', textAlign: 'center' }}>{value ?? '-'}</span> 
     },
     {
       title: '操作',
