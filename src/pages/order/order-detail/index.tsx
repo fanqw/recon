@@ -84,7 +84,7 @@ const OrderDetail: React.FC = () => {
     const res = await orderCommodityService.getOrderCommodityList(id)
     setListLoading(false)
     if (res.code === 200) {
-      setList(res.data)
+      setList((res.data || [])?.reverse())
     } else {
       setList([])
     }
