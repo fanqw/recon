@@ -50,7 +50,11 @@ export function LoginClient() {
         <h1 className="mb-6 text-center text-xl font-semibold text-zinc-900">
           recon 登录
         </h1>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form
+          onSubmit={handleSubmit}
+          method="post"
+          className="flex flex-col gap-4"
+        >
           <div>
             <label
               htmlFor="username"
