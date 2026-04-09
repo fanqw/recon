@@ -91,8 +91,13 @@ describe("主数据与订单 API 最小成功路径", () => {
 
     const lineRes = await postJsonWithCookie(
       baseUrl,
-      `/api/orders/${ord.item.id}/lines`,
-      { commodityId: com.item.id, count: 3, price: 10.5 },
+      "/api/order-lines",
+      {
+        orderId: ord.item.id,
+        commodityId: com.item.id,
+        count: 3,
+        price: 10.5,
+      },
       cookie
     );
     expect(lineRes.status).toBe(201);

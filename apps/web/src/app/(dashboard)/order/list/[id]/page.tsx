@@ -149,11 +149,12 @@ export default function OrderDetailPage() {
         setError("请选择商品");
         return;
       }
-      const res = await fetch(`/api/orders/${orderId}/lines`, {
+      const res = await fetch("/api/order-lines", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
+          orderId,
           commodityId,
           count,
           price,

@@ -87,13 +87,10 @@ test("订单详情可触发导出 Excel 下载", async ({ page }) => {
   const ordJson = (await ordRes.json()) as { item: { id: string } };
   const orderId = ordJson.item.id;
 
-  const lineRes = await page.request.post(
-    `/api/orders/${orderId}/lines`,
-    {
-      data: { commodityId, count: 1, price: 12.34 },
-      headers: { "Content-Type": "application/json" },
-    }
-  );
+  const lineRes = await page.request.post("/api/order-lines", {
+    data: { orderId, commodityId, count: 1, price: 12.34 },
+    headers: { "Content-Type": "application/json" },
+  });
   expect(lineRes.ok()).toBeTruthy();
 
   await page.goto(`/order/list/${orderId}`);

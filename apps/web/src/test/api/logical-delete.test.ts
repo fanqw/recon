@@ -201,8 +201,13 @@ describe("逻辑删除后默认列表不再包含", () => {
 
     const lineRes = await postJsonWithCookie(
       baseUrl,
-      `/api/orders/${ord.item.id}/lines`,
-      { commodityId: com.item.id, count: 1, price: 1 },
+      "/api/order-lines",
+      {
+        orderId: ord.item.id,
+        commodityId: com.item.id,
+        count: 1,
+        price: 1,
+      },
       cookie
     );
     expect(lineRes.status).toBe(201);
