@@ -44,6 +44,8 @@
 - `pnpm install`：安装工作区依赖；
 - `pnpm run <script>` / `pnpm --filter <包名> <命令>`：按包或根脚本执行开发、构建、测试；
 - `pnpm --filter web dev`：启动全栈 Web 应用开发环境；
+- `pnpm test` / `pnpm --filter web test`：Vitest（单元与 API 集成；配置见 `apps/web/vitest.config.ts`）；
+- `pnpm test:e2e` / `pnpm --filter web test:e2e`：Playwright（配置见 `apps/web/playwright.config.ts`）；
 - `docker compose up` 等：容器化本地或流水线环境；
 - 以及 Prettier / ESLint 的格式化与检查命令。
 

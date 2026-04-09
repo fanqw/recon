@@ -44,6 +44,19 @@
 
 后续新增环境变量、镜像标签、服务端口、数据卷或初始化脚本时，必须同步更新本文档。
 
+## 环境准备与常用命令
+
+1. **依赖服务**：在仓库根目录使用 Docker Compose 启动 PostgreSQL / Redis（具体文件以仓库内 `compose` 配置为准）。
+2. **应用环境变量**：将 `.env.example` 复制为 `apps/web/.env`，按本地环境填写 `DATABASE_URL`、`SESSION_SECRET`（长度须符合 iron-session 要求，通常不少于 32 字符）等。
+3. **数据库**：在仓库根目录依次执行 `pnpm db:migrate`（或等效的 Prisma migrate）、`pnpm db:seed` 写入管理员与演示数据。
+4. **开发**：`pnpm dev` 启动全栈应用（默认由 `apps/web` 提供 Next.js 开发服务器）。
+5. **测试**：
+   - `pnpm test`：运行 Vitest（含 `src/**/*.test.ts`；API 集成测试会在无可用开发服务时尝试在本机随机端口启动 `next dev`，需可读 `apps/web/.env` 中的 `DATABASE_URL`）。
+   - `pnpm test:e2e`：运行 Playwright；首次需在本机执行 `pnpm --filter web exec playwright install chromium`（或 `playwright install`）下载浏览器。
+6. **默认账号**：种子数据中的管理员为 **admin** / **admin123**；生产环境务必修改密码或停用该账号。
+
+**Vitest 与已运行的 `pnpm dev`：** 若 `http://127.0.0.1:3000` 上已有可用的 Next 开发服务，Vitest 会复用其作为 API 测试基址，避免同目录启动第二个 `next dev`（Next 会拒绝多实例）。可通过环境变量 `RECON_TEST_BASE_URL` 指定其他基址。
+
 ## Validation
 
 新增业务逻辑时，应在同一变更或紧密相关的提交中补充测试。测试应覆盖：
