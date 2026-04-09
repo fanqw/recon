@@ -1,0 +1,98 @@
+import { expect, test } from "@playwright/test";
+
+/**
+ * 登录页：填充并提交表单（等待 load 与短延迟以降低未 hydrate 即点击的风险）。
+ */
+test("登录页可填写并提交表单", async ({ page }) => {
+  await page.goto("/login", { waitUntil: "load" });
+  await page.getByLabel("用户名").waitFor({ state: "visible" });
+  await page.waitForTimeout(800);
+  await page.getByLabel("用户名").fill("admin");
+  await page.getByLabel("密码").fill("admin123");
+  await Promise.all([
+    page.waitForResponse(
+      (r) =>
+        r.url().includes("/api/auth/login") &&
+        r.request().method() === "POST"
+    ),
+    page.getByRole("button", { name: "登录" }).click(),
+  ]);
+  await expect(page).toHaveURL(/\/basic\/category/, { timeout: 15_000 });
+});
+
+/**
+ * API 登录后依次打开主导航页面并点击各页至少一个主按钮。
+ */
+test("主导航各页可见且主按钮可点", async ({ page }) => {
+  const login = await page.request.post("/api/auth/login", {
+    data: { username: "admin", password: "admin123" },
+    headers: { "Content-Type": "application/json" },
+  });
+  expect(login.ok()).toBeTruthy();
+
+  await page.goto("/basic/category");
+  await expect(
+    page.getByRole("heading", { name: "分类", exact: true })
+  ).toBeVisible();
+  await page.getByRole("button", { name: "新建" }).click();
+
+  await page.goto("/basic/unit");
+  await expect(
+    page.getByRole("heading", { name: "单位", exact: true })
+  ).toBeVisible();
+  await page.getByRole("button", { name: "新建" }).click();
+
+  await page.goto("/basic/commodity");
+  await expect(
+    page.getByRole("heading", { name: "商品", exact: true })
+  ).toBeVisible();
+  await page.getByRole("button", { name: "新建" }).click();
+
+  await page.goto("/order/list");
+  await expect(
+    page.getByRole("heading", { name: "订单", exact: true })
+  ).toBeVisible();
+  await page.getByRole("button", { name: "创建" }).click();
+});
+
+/**
+ * 准备订单与明细后，在详情页触发导出 Excel 并等待浏览器下载。
+ */
+test("订单详情可触发导出 Excel 下载", async ({ page }) => {
+  const login = await page.request.post("/api/auth/login", {
+    data: { username: "admin", password: "admin123" },
+    headers: { "Content-Type": "application/json" },
+  });
+  expect(login.ok()).toBeTruthy();
+
+  const comRes = await page.request.get("/api/commodities");
+  expect(comRes.ok()).toBeTruthy();
+  const comJson = (await comRes.json()) as { items: { id: string }[] };
+  const commodityId = comJson.items[0]?.id;
+  expect(commodityId).toBeTruthy();
+
+  const ordRes = await page.request.post("/api/orders", {
+    data: { name: `e2e-export-${Date.now()}` },
+    headers: { "Content-Type": "application/json" },
+  });
+  expect(ordRes.status()).toBe(201);
+  const ordJson = (await ordRes.json()) as { item: { id: string } };
+  const orderId = ordJson.item.id;
+
+  const lineRes = await page.request.post(
+    `/api/orders/${orderId}/lines`,
+    {
+      data: { commodityId, count: 1, price: 12.34 },
+      headers: { "Content-Type": "application/json" },
+    }
+  );
+  expect(lineRes.ok()).toBeTruthy();
+
+  await page.goto(`/order/list/${orderId}`);
+  await expect(page.getByRole("button", { name: "导出 Excel" })).toBeVisible();
+
+  const downloadPromise = page.waitForEvent("download", { timeout: 30_000 });
+  await page.getByRole("button", { name: "导出 Excel" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename().toLowerCase()).toMatch(/\.xlsx$/);
+});

@@ -50,3 +50,24 @@ export function fetchWithCookie(
   if (cookie) headers.set("Cookie", cookie);
   return fetch(apiUrl(baseUrl, pathname), { ...init, headers });
 }
+
+/**
+ * 使用会话 Cookie 发送 JSON `POST`（用于测试中创建资源）。
+ */
+export function postJsonWithCookie(
+  baseUrl: string,
+  pathname: string,
+  body: unknown,
+  cookie: string
+): Promise<Response> {
+  return fetchWithCookie(
+    baseUrl,
+    pathname,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    cookie
+  );
+}

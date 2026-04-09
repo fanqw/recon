@@ -111,7 +111,7 @@ async function waitForServerReady(baseURL: string, timeoutMs: number): Promise<v
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
   const webRoot = path.resolve(__dirname, "../..");
   const reuseUrl =
-    process.env.RECON_TEST_BASE_URL?.trim() || "http://127.0.0.1:3000";
+    process.env.RECON_TEST_BASE_URL?.trim() || "http://localhost:3000";
 
   if (await tryUseExistingDevServer(reuseUrl)) {
     const baseURL = reuseUrl.replace(/\/$/, "");

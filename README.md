@@ -55,7 +55,7 @@
    - `pnpm test:e2e`：运行 Playwright；首次需在本机执行 `pnpm --filter web exec playwright install chromium`（或 `playwright install`）下载浏览器。
 6. **默认账号**：种子数据中的管理员为 **admin** / **admin123**；生产环境务必修改密码或停用该账号。
 
-**Vitest 与已运行的 `pnpm dev`：** 若 `http://127.0.0.1:3000` 上已有可用的 Next 开发服务，Vitest 会复用其作为 API 测试基址，避免同目录启动第二个 `next dev`（Next 会拒绝多实例）。可通过环境变量 `RECON_TEST_BASE_URL` 指定其他基址。
+**Vitest / Playwright 与已运行的 `pnpm dev`：** 默认探测 `http://localhost:3000`（与 Next 开发服务器提示一致）。Vitest 会复用已就绪的开发服务作为 API 测试基址，避免同目录启动第二个 `next dev`（Next 会拒绝多实例）。可通过环境变量 `RECON_TEST_BASE_URL` 指定其他基址。
 
 ## Validation
 
