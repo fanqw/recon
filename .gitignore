@@ -1,1 +1,36 @@
-/v1
+# 依赖与构建
+node_modules/
+.next/
+out/
+dist/
+build/
+.turbo/
+
+# 环境变量与密钥
+.env
+.env.*
+!.env.example
+apps/web/.env
+apps/web/.env.*
+
+# 测试与报告
+coverage/
+playwright-report/
+test-results/
+*.log
+
+# v1 历史参考实现 — 不纳入 recon（v2）版本库
+v1/
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Prisma
+apps/web/prisma/*.db
+apps/web/prisma/*.db-journal
+
+# 系统文件
+.DS_Store
+Thumbs.db
