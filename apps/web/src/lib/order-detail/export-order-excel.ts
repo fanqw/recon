@@ -8,6 +8,7 @@ import {
 /** 与页面表格一致的明细行（来自 API JSON）。 */
 export type ExcelOrderLine = {
   total_price: number;
+  line_total: number;
   origin_total_price: number;
   total_category_price: number;
   total_order_price: number;
@@ -15,8 +16,8 @@ export type ExcelOrderLine = {
   count: number;
   price: number;
   commodity: { name: string };
-  category: { name: string };
-  unit: { name: string };
+  category: { id: string; name: string };
+  unit: { id: string; name: string };
 };
 
 /**
@@ -82,8 +83,8 @@ export async function downloadOrderDetailExcel(params: {
     excelRow.getCell(5).value = row.price;
 
     const amountCell = excelRow.getCell(6);
-    amountCell.value = row.total_price;
-    if (row.total_price !== row.origin_total_price) {
+    amountCell.value = row.line_total;
+    if (row.line_total !== row.total_price) {
       amountCell.font = { color: { argb: "FFFF0000" } };
     }
 

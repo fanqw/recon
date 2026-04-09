@@ -21,13 +21,20 @@ async function ensureAuth() {
 }
 
 /**
- * GET /api/commodities：列出未删除商品（含分类与单位 id）。
+ * GET /api/commodities：列出未删除商品（含分类与单位）；支持 ?q= 按名称包含过滤（不区分大小写）。
  */
-export async function GET() {
+export async function GET(req: Request) {
   const unauthorized = await ensureAuth();
   if (unauthorized) return unauthorized;
+  const { searchParams } = new URL(req.url);
+  const q = searchParams.get("q")?.trim() ?? "";
   const rows = await prisma.commodity.findMany({
-    where: { deleted: false },
+    where: {
+      deleted: false,
+      ...(q
+        ? { name: { contains: q, mode: "insensitive" as const } }
+        : {}),
+    },
     orderBy: { updatedAt: "desc" },
     include: { category: true, unit: true },
   });
@@ -35,7 +42,7 @@ export async function GET() {
 }
 
 /**
- * POST /api/commodities：创建商品，校验分类与单位存在且未删除。
+ * POST /api/commodities：创建商品，校验分类与单位存在且未删除（name 会 trim，空则 400）。
  */
 export async function POST(req: Request) {
   const unauthorized = await ensureAuth();
@@ -45,7 +52,11 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "请求体无效" }, { status: 400 });
   }
-  const { categoryId, unitId, name, desc } = parsed.data;
+  const name = parsed.data.name.trim();
+  if (!name) {
+    return NextResponse.json({ error: "名称不能为空" }, { status: 400 });
+  }
+  const { categoryId, unitId, desc } = parsed.data;
   const [cat, unit] = await Promise.all([
     prisma.category.findFirst({ where: { id: categoryId, deleted: false } }),
     prisma.unit.findFirst({ where: { id: unitId, deleted: false } }),
@@ -53,7 +64,7 @@ export async function POST(req: Request) {
   if (!cat || !unit) {
     return NextResponse.json(
       { error: "分类或单位不存在或已删除" },
-      { status: 400 }
+      { status: 400 },
     );
   }
   const row = await prisma.commodity.create({

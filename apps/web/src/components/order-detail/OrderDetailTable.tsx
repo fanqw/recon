@@ -19,7 +19,7 @@ type Props = {
 };
 
 /**
- * 订单明细表：列顺序与合并规则对齐 v1；金额不等时标红。
+ * 订单明细表：列顺序与合并规则对齐 v1；`line_total` 与舍入基准 `total_price` 不等时金额列标红。
  */
 export function OrderDetailTable({ lines, onEdit, onDelete }: Props) {
   const categorySpans = computeCategoryRowSpans(lines);
@@ -68,12 +68,12 @@ export function OrderDetailTable({ lines, onEdit, onDelete }: Props) {
               <td className="px-2 py-2 text-zinc-800">{row.price}</td>
               <td
                 className={
-                  row.total_price !== row.origin_total_price
+                  row.line_total !== row.total_price
                     ? "px-2 py-2 font-medium text-red-600"
                     : "px-2 py-2 text-zinc-900"
                 }
               >
-                {row.total_price}
+                {row.line_total}
               </td>
               <td className="px-2 py-2 text-zinc-600">{row.desc ?? "—"}</td>
               {categoryAmountSpans[i] > 0 ? (

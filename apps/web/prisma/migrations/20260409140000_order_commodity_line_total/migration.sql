@@ -1,0 +1,1 @@
+ALTER TABLE "OrderCommodity" ADD COLUMN "line_total" DECIMAL(12,2) NOT NULL DEFAULT 0;

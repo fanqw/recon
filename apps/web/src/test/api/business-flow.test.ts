@@ -39,7 +39,7 @@ describe("主数据与订单 API 最小成功路径", () => {
         categoryId: "clnonexistent000000000000000",
         unitId,
       },
-      cookie
+      cookie,
     );
     expect(bad.status).toBe(400);
   });
@@ -53,7 +53,7 @@ describe("主数据与订单 API 最小成功路径", () => {
       baseUrl,
       "/api/categories",
       { name: `api-cat-${suf}`, desc: "test" },
-      cookie
+      cookie,
     );
     expect(catRes.status).toBe(201);
     const cat = (await catRes.json()) as { item: { id: string } };
@@ -62,7 +62,7 @@ describe("主数据与订单 API 最小成功路径", () => {
       baseUrl,
       "/api/units",
       { name: `api-unit-${suf}`, desc: "test" },
-      cookie
+      cookie,
     );
     expect(unitRes.status).toBe(201);
     const unit = (await unitRes.json()) as { item: { id: string } };
@@ -75,7 +75,7 @@ describe("主数据与订单 API 最小成功路径", () => {
         categoryId: cat.item.id,
         unitId: unit.item.id,
       },
-      cookie
+      cookie,
     );
     expect(comRes.status).toBe(201);
     const com = (await comRes.json()) as { item: { id: string } };
@@ -84,7 +84,7 @@ describe("主数据与订单 API 最小成功路径", () => {
       baseUrl,
       "/api/orders",
       { name: `api-ord-${suf}`, desc: "test" },
-      cookie
+      cookie,
     );
     expect(ordRes.status).toBe(201);
     const ord = (await ordRes.json()) as { item: { id: string } };
@@ -98,7 +98,7 @@ describe("主数据与订单 API 最小成功路径", () => {
         count: 3,
         price: 10.5,
       },
-      cookie
+      cookie,
     );
     expect(lineRes.status).toBe(201);
 
@@ -106,12 +106,13 @@ describe("主数据与订单 API 最小成功路径", () => {
       baseUrl,
       `/api/orders/${ord.item.id}/lines`,
       {},
-      cookie
+      cookie,
     );
     expect(linesRes.status).toBe(200);
     const linesBody = (await linesRes.json()) as {
       items: Array<{
         total_price: number;
+        line_total: number;
         origin_total_price: number;
         total_category_price: number;
         total_order_price: number;
@@ -121,10 +122,58 @@ describe("主数据与订单 API 最小成功路径", () => {
     };
     expect(linesBody.items.length).toBeGreaterThanOrEqual(1);
     const row = linesBody.items[0];
-    expect(typeof row.total_price).toBe("number");
+    expect(row.total_price).toBe(32);
+    expect(row.line_total).toBe(32);
     expect(typeof row.origin_total_price).toBe("number");
-    expect(typeof row.total_category_price).toBe("number");
-    expect(typeof row.total_order_price).toBe("number");
+    expect(row.total_category_price).toBe(32);
+    expect(row.total_order_price).toBe(32);
     expect(row.commodity.name).toBe(`api-com-${suf}`);
+  });
+
+  it("POST /api/order-lines 仅空白商品名返回 400", async () => {
+    const baseUrl = inject("testBaseUrl");
+    const cookie = await loginAsAdmin(baseUrl);
+    const suf = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+    const catRes = await postJsonWithCookie(
+      baseUrl,
+      "/api/categories",
+      { name: `api-cat2-${suf}` },
+      cookie,
+    );
+    const unitRes = await postJsonWithCookie(
+      baseUrl,
+      "/api/units",
+      { name: `api-u2-${suf}` },
+      cookie,
+    );
+    expect(catRes.status).toBe(201);
+    expect(unitRes.status).toBe(201);
+    const cat = (await catRes.json()) as { item: { id: string } };
+    const unit = (await unitRes.json()) as { item: { id: string } };
+
+    const ordRes = await postJsonWithCookie(
+      baseUrl,
+      "/api/orders",
+      { name: `api-o2-${suf}` },
+      cookie,
+    );
+    expect(ordRes.status).toBe(201);
+    const ord = (await ordRes.json()) as { item: { id: string } };
+
+    const bad = await postJsonWithCookie(
+      baseUrl,
+      "/api/order-lines",
+      {
+        orderId: ord.item.id,
+        count: 1,
+        price: 1,
+        categoryId: cat.item.id,
+        unitId: unit.item.id,
+        commodityName: "   ",
+      },
+      cookie,
+    );
+    expect(bad.status).toBe(400);
   });
 });

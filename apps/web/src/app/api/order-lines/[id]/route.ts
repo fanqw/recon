@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth";
 const patchSchema = z.object({
   count: z.number().int().positive().optional(),
   price: z.union([z.number(), z.string()]).optional(),
+  lineTotal: z.union([z.number(), z.string()]).optional(),
   desc: z.string().optional(),
 });
 
@@ -21,11 +22,11 @@ async function guard() {
 }
 
 /**
- * PATCH /api/order-lines/[id]：更新明细数量、单价、备注。
+ * PATCH /api/order-lines/[id]：更新明细数量、单价、行金额、备注。
  */
 export async function PATCH(
   req: Request,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const unauthorized = await guard();
   if (unauthorized) return unauthorized;
@@ -46,12 +47,17 @@ export async function PATCH(
     parsed.data.price !== undefined
       ? new Prisma.Decimal(String(parsed.data.price))
       : undefined;
+  const lineTotal =
+    parsed.data.lineTotal !== undefined
+      ? new Prisma.Decimal(String(parsed.data.lineTotal))
+      : undefined;
 
   const item = await prisma.orderCommodity.update({
     where: { id },
     data: {
       count: count ?? existing.count,
       price: price ?? existing.price,
+      lineTotal: lineTotal ?? existing.lineTotal,
       desc: desc !== undefined ? desc : existing.desc,
     },
     include: {
@@ -66,7 +72,7 @@ export async function PATCH(
  */
 export async function DELETE(
   _req: Request,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const unauthorized = await guard();
   if (unauthorized) return unauthorized;
