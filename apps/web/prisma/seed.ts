@@ -1,12 +1,39 @@
+import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
+
+const prisma = new PrismaClient();
+
 /**
- * Prisma 数据库种子脚本入口。
- * 在 `prisma/schema.prisma` 就绪并执行 `prisma generate` 后可在此写入初始数据。
+ * 初始化种子数据：写入可登录的管理员账号（admin / admin123）及演示用分类、单位、商品。
  */
 async function main(): Promise<void> {
-  // 占位：无 schema 时不执行数据库操作
+  const passwordHash = await bcrypt.hash("admin123", 10);
+  await prisma.user.upsert({
+    where: { username: "admin" },
+    update: { passwordHash },
+    create: { username: "admin", passwordHash },
+  });
+
+  const cat = await prisma.category.create({
+    data: { name: "示例分类", desc: "seed" },
+  });
+  const unit = await prisma.unit.create({
+    data: { name: "件", desc: "seed" },
+  });
+  await prisma.commodity.create({
+    data: {
+      name: "示例商品",
+      categoryId: cat.id,
+      unitId: unit.id,
+      desc: "seed",
+    },
+  });
 }
 
-main().catch((e: unknown) => {
-  console.error(e);
-  process.exit(1);
-});
+main()
+  .then(() => prisma.$disconnect())
+  .catch(async (e: unknown) => {
+    console.error(e);
+    await prisma.$disconnect();
+    process.exit(1);
+  });
