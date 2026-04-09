@@ -36,7 +36,7 @@ export async function GET(
 }
 
 /**
- * PATCH /api/units/[id]：更新单位。
+ * PATCH /api/units/[id]：更新单位；若传 `name` 则先 trim，trim 后为空返回 400。
  */
 export async function PATCH(
   req: Request,
@@ -54,9 +54,21 @@ export async function PATCH(
     where: { id, deleted: false },
   });
   if (!existing) return NextResponse.json({ error: "未找到" }, { status: 404 });
+
+  const data: { name?: string; desc?: string | null } = {};
+  if (parsed.data.name !== undefined) {
+    const name = parsed.data.name.trim();
+    if (!name) {
+      return NextResponse.json({ error: "名称不能为空" }, { status: 400 });
+    }
+    data.name = name;
+  }
+  if (parsed.data.desc !== undefined) {
+    data.desc = parsed.data.desc;
+  }
   const row = await prisma.unit.update({
     where: { id },
-    data: parsed.data,
+    data,
   });
   return NextResponse.json({ item: row });
 }

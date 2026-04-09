@@ -39,7 +39,7 @@ export async function GET(
 }
 
 /**
- * PATCH /api/commodities/[id]：更新商品；若改外键则校验分类与单位存在。
+ * PATCH /api/commodities/[id]：更新商品；若改外键则校验分类与单位存在；若传 `name` 则先 trim，trim 后为空返回 400。
  */
 export async function PATCH(
   req: Request,
@@ -72,10 +72,19 @@ export async function PATCH(
     );
   }
 
+  let nextName = existing.name;
+  if (name !== undefined) {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      return NextResponse.json({ error: "名称不能为空" }, { status: 400 });
+    }
+    nextName = trimmed;
+  }
+
   const row = await prisma.commodity.update({
     where: { id },
     data: {
-      name: name ?? existing.name,
+      name: nextName,
       desc: desc !== undefined ? desc : existing.desc,
       categoryId: nextCategoryId,
       unitId: nextUnitId,

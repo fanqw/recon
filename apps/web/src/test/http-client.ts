@@ -73,6 +73,27 @@ export function postJsonWithCookie(
 }
 
 /**
+ * 使用会话 Cookie 发送 JSON `PATCH`（用于测试中更新资源）。
+ */
+export function patchJsonWithCookie(
+  baseUrl: string,
+  pathname: string,
+  body: unknown,
+  cookie: string
+): Promise<Response> {
+  return fetchWithCookie(
+    baseUrl,
+    pathname,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    cookie
+  );
+}
+
+/**
  * 使用会话 Cookie 发送 `DELETE`（用于逻辑删除类接口）。
  */
 export function deleteWithCookie(

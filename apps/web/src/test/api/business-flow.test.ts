@@ -2,6 +2,7 @@ import { describe, expect, inject, it } from "vitest";
 import {
   fetchWithCookie,
   loginAsAdmin,
+  patchJsonWithCookie,
   postJsonWithCookie,
 } from "../http-client";
 
@@ -175,5 +176,113 @@ describe("主数据与订单 API 最小成功路径", () => {
       cookie,
     );
     expect(bad.status).toBe(400);
+  });
+
+  it("POST /api/order-lines 仅用名称编排创建明细且复用同一商品", async () => {
+    const baseUrl = inject("testBaseUrl");
+    const cookie = await loginAsAdmin(baseUrl);
+    const suf = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+    const ordRes = await postJsonWithCookie(
+      baseUrl,
+      "/api/orders",
+      { name: `api-orch-${suf}` },
+      cookie,
+    );
+    expect(ordRes.status).toBe(201);
+    const ord = (await ordRes.json()) as { item: { id: string } };
+
+    const payload = {
+      orderId: ord.item.id,
+      count: 2,
+      price: 5,
+      categoryName: `  orch-cat-${suf}  `,
+      unitName: `orch-unit-${suf}`,
+      commodityName: `orch-com-${suf}`,
+    };
+
+    const line1 = await postJsonWithCookie(
+      baseUrl,
+      "/api/order-lines",
+      payload,
+      cookie,
+    );
+    expect(line1.status).toBe(201);
+    const body1 = (await line1.json()) as {
+      item: { commodityId: string; commodity: { name: string } };
+    };
+    expect(body1.item.commodity.name).toBe(`orch-com-${suf}`);
+
+    const line2 = await postJsonWithCookie(
+      baseUrl,
+      "/api/order-lines",
+      {
+        ...payload,
+        count: 1,
+        price: 10,
+      },
+      cookie,
+    );
+    expect(line2.status).toBe(201);
+    const body2 = (await line2.json()) as { item: { commodityId: string } };
+    expect(body2.item.commodityId).toBe(body1.item.commodityId);
+  });
+
+  it("PATCH 主数据 name 仅空白时返回 400", async () => {
+    const baseUrl = inject("testBaseUrl");
+    const cookie = await loginAsAdmin(baseUrl);
+    const suf = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+    const catRes = await postJsonWithCookie(
+      baseUrl,
+      "/api/categories",
+      { name: `patch-cat-${suf}` },
+      cookie,
+    );
+    const unitRes = await postJsonWithCookie(
+      baseUrl,
+      "/api/units",
+      { name: `patch-unit-${suf}` },
+      cookie,
+    );
+    expect(catRes.status).toBe(201);
+    expect(unitRes.status).toBe(201);
+    const cat = (await catRes.json()) as { item: { id: string } };
+    const unit = (await unitRes.json()) as { item: { id: string } };
+
+    const comRes = await postJsonWithCookie(
+      baseUrl,
+      "/api/commodities",
+      {
+        name: `patch-com-${suf}`,
+        categoryId: cat.item.id,
+        unitId: unit.item.id,
+      },
+      cookie,
+    );
+    expect(comRes.status).toBe(201);
+    const com = (await comRes.json()) as { item: { id: string } };
+
+    const catBad = await patchJsonWithCookie(
+      baseUrl,
+      `/api/categories/${cat.item.id}`,
+      { name: "   " },
+      cookie,
+    );
+    const unitBad = await patchJsonWithCookie(
+      baseUrl,
+      `/api/units/${unit.item.id}`,
+      { name: "\t" },
+      cookie,
+    );
+    const comBad = await patchJsonWithCookie(
+      baseUrl,
+      `/api/commodities/${com.item.id}`,
+      { name: "  " },
+      cookie,
+    );
+    expect(catBad.status).toBe(400);
+    expect(unitBad.status).toBe(400);
+    expect(comBad.status).toBe(400);
   });
 });

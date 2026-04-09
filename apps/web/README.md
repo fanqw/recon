@@ -5,32 +5,20 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 First, run the development server:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
 pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 开发与数据库（recon）
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Prisma Client 与 `pnpm dev` 并发（尤其 Windows）**：修改 `prisma/schema.prisma` 或执行迁移后，若开发服务正在运行，直接在同一目录执行 `pnpm exec prisma generate` 可能因文件被占用报错（如 `EPERM`）。请先**停止** `pnpm dev`，再执行 `pnpm exec prisma generate`，然后重新启动开发服务。
+- **主数据名称校验范围**：分类/单位/商品的 `trim` 与非空规则以当前实现的 API 与订单详情页「新增明细」表单为准；若后续增加独立主数据管理页，应复用相同校验逻辑以保持行为一致。
 
 ## Learn More
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- [Next.js Documentation](https://nextjs.org/docs)
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying).

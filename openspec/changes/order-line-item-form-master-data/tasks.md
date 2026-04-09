@@ -5,8 +5,8 @@
 
 ## 2. 主数据 API
 
-- [ ] 2.1 为分类/单位/商品列表接口增加名称关键字查询参数（或专用轻量检索路由），仅返回未删除记录；**POST/PATCH** 对 **name** **`trim()` 后非空**二次校验（空则 400）；接口补充中文注释
-- [ ] 2.2 实现 `resolveOrCreateCategory` / `resolveOrCreateUnit` / `resolveOrCreateCommodity`（事务内、依赖 name 唯一），单测覆盖复用与新建及 trim
+- [x] 2.1 为分类/单位/商品列表接口增加名称关键字查询参数（或专用轻量检索路由），仅返回未删除记录；**POST/PATCH** 对 **name** **`trim()` 后非空**二次校验（空则 400）；接口补充中文注释
+- [x] 2.2 实现 `resolveOrCreateCategory` / `resolveOrCreateUnit` / `resolveOrCreateCommodity`（事务内、依赖 name 唯一），单测覆盖复用与新建及 trim
 
 ## 3. 订单明细 API 与聚合
 
@@ -28,4 +28,4 @@
 ## 6. 种子与测试
 
 - [ ] 6.1 将 `prisma/seed.ts` 等 mock/种子调整为**贴近真实业务场景**的示例（如分类「水果」、单位「斤」、商品「苹果」），便于演示与手工测试；seed 应可重复执行（如 findFirst + create），**与唯一索引无绑定**——唯一性由迁移与业务规则保证，示例名称可替换为其他真实感数据
-- [ ] 6.2 补充聚合与标红判定单元测试及 order-lines API 集成测试（含 trim、**trim 后空串 400**、唯一冲突、主数据编排）
+- [ ] 6.2 补充聚合与标红判定单元测试及 order-lines API 集成测试（含 trim、**trim 后空串 400**、唯一冲突、主数据编排）（已覆盖：trim、空串 400、主数据名称编排复用、`PATCH` name 仅空白 400、`resolveOrCreate*` mock 单测；**未覆盖**：数据库唯一冲突路径）
