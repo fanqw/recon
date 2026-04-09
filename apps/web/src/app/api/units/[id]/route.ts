@@ -1,0 +1,80 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import { requireUser } from "@/lib/auth";
+
+const patchSchema = z.object({
+  name: z.string().min(1).optional(),
+  desc: z.string().optional(),
+});
+
+async function guard() {
+  try {
+    await requireUser();
+  } catch (e) {
+    const status = (e as Error & { status?: number }).status ?? 401;
+    return NextResponse.json({ error: "未授权" }, { status });
+  }
+  return null;
+}
+
+/**
+ * GET /api/units/[id]：获取单条单位（未删除）。
+ */
+export async function GET(
+  _req: Request,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  const unauthorized = await guard();
+  if (unauthorized) return unauthorized;
+  const { id } = await ctx.params;
+  const row = await prisma.unit.findFirst({
+    where: { id, deleted: false },
+  });
+  if (!row) return NextResponse.json({ error: "未找到" }, { status: 404 });
+  return NextResponse.json({ item: row });
+}
+
+/**
+ * PATCH /api/units/[id]：更新单位。
+ */
+export async function PATCH(
+  req: Request,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  const unauthorized = await guard();
+  if (unauthorized) return unauthorized;
+  const { id } = await ctx.params;
+  const json = await req.json().catch(() => null);
+  const parsed = patchSchema.safeParse(json);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "请求体无效" }, { status: 400 });
+  }
+  const existing = await prisma.unit.findFirst({
+    where: { id, deleted: false },
+  });
+  if (!existing) return NextResponse.json({ error: "未找到" }, { status: 404 });
+  const row = await prisma.unit.update({
+    where: { id },
+    data: parsed.data,
+  });
+  return NextResponse.json({ item: row });
+}
+
+/**
+ * DELETE /api/units/[id]：逻辑删除单位。
+ */
+export async function DELETE(
+  _req: Request,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  const unauthorized = await guard();
+  if (unauthorized) return unauthorized;
+  const { id } = await ctx.params;
+  const existing = await prisma.unit.findFirst({
+    where: { id, deleted: false },
+  });
+  if (!existing) return NextResponse.json({ error: "未找到" }, { status: 404 });
+  await prisma.unit.update({ where: { id }, data: { deleted: true } });
+  return NextResponse.json({ ok: true });
+}
