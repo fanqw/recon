@@ -1,6 +1,14 @@
 import { expect, test } from "@playwright/test";
 
 /**
+ * 未携带会话时访问受保护路由，中间件应重定向到登录页（可带 `from` 查询参数）。
+ */
+test("未登录访问受保护页重定向到登录", async ({ page }) => {
+  await page.goto("/basic/category", { waitUntil: "commit" });
+  await expect(page).toHaveURL(/\/login/, { timeout: 15_000 });
+});
+
+/**
  * 登录页：填充并提交表单（等待 load 与短延迟以降低未 hydrate 即点击的风险）。
  */
 test("登录页可填写并提交表单", async ({ page }) => {

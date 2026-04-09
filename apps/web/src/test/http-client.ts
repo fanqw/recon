@@ -71,3 +71,14 @@ export function postJsonWithCookie(
     cookie
   );
 }
+
+/**
+ * 使用会话 Cookie 发送 `DELETE`（用于逻辑删除类接口）。
+ */
+export function deleteWithCookie(
+  baseUrl: string,
+  pathname: string,
+  cookie: string
+): Promise<Response> {
+  return fetchWithCookie(baseUrl, pathname, { method: "DELETE" }, cookie);
+}

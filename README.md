@@ -26,7 +26,7 @@
 | ------------------ | ---------------------------------------- |
 | 仓库与包管理       | pnpm workspace                           |
 | 全栈应用           | Next.js（App Router）、React、TypeScript |
-| UI 与客户端状态    | Tailwind CSS、Redux、Axios               |
+| UI 与客户端状态    | Tailwind CSS、React（组件内 state）、原生 `fetch` |
 | 数据访问与基础设施 | Prisma、PostgreSQL、Redis                |
 | 代码规范           | ESLint、Prettier                         |
 | 本地编排与交付     | Docker、Docker Compose                   |
