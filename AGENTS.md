@@ -76,6 +76,10 @@ Pull Request 应至少包含：
 - 相关 issue 链接（如有）；
 - 仅在界面变更时附截图。
 
+## OpenSpec 与 Agent 约定
+
+- 在执行 **OpenSpec 变更验证**（项目技能 `openspec-verify-change`，或与 `.cursor/commands/opsx-verify.md` 等价的流程）并得出 **无 CRITICAL** 的结论（Final Assessment 为可归档或「全通过」），或用户**明确确认本次验证通过**之后，助手 **必须先读取** `.cursor/skills/openspec-sync-task-checkboxes/SKILL.md`，再按其中步骤对照 spec 与实现更新 `openspec/changes/<变更名>/tasks.md` 的 `- [x]` 或推迟/不适用说明，避免任务勾选与事实长期脱节。
+
 ## 文档维护要求
 
 新增或变更目录结构、环境变量、开发/构建/部署命令时，应同步更新 `README.md`，使新贡献者无需通读源码即可上手。若技术栈、全栈架构边界或 v1 与 recon（v2）边界说明有变，应同时更新本文件。

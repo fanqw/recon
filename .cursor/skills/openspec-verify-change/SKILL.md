@@ -143,6 +143,15 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
    - If only warnings: "No critical issues. Y warning(s) to consider. Ready for archive (with noted improvements)."
    - If all clear: "All checks passed. Ready for archive."
 
+9. **Sync `tasks.md` checkboxes (required in this repo)**
+
+   After the verification report is delivered:
+
+   - **If** the Final Assessment has **no CRITICAL** issues (ready for archive / all checks passed), **or** the user **explicitly confirms** that verification passed: **Read** `.cursor/skills/openspec-sync-task-checkboxes/SKILL.md` first, then follow it to update `openspec/changes/<name>/tasks.md` (mark `- [x]` with evidence, or annotate deferral / not applicable).
+   - **If** CRITICAL issues remain for **missing requirements or implementation** (not only checkbox state): do **not** mark tasks complete to hide gaps; fix implementation or scope first, then re-verify and run this step when clear.
+
+   This matches the repository rule in `AGENTS.md` (OpenSpec / Agent section).
+
 **Verification Heuristics**
 
 - **Completeness**: Focus on objective checklist items (checkboxes, requirements list)
