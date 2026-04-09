@@ -26,14 +26,14 @@
 
 以下为当前已确定的技术选型，后续若有调整应在本文档与 `README.md` 中同步说明。
 
-| 层级               | 技术                                                 |
-| ------------------ | ---------------------------------------------------- |
-| 仓库与包管理       | pnpm workspace（Mono-repo）                          |
-| 全栈应用           | Next.js（App Router）、React、TypeScript             |
-| UI 与客户端状态    | Tailwind CSS、Redux、Axios                           |
-| 数据访问与基础设施 | Prisma、PostgreSQL、Redis                            |
-| 代码规范           | ESLint、Prettier                                     |
-| 交付与本地编排     | Docker、Docker Compose（用于 CI/CD 与开发/部署流程） |
+| 层级               | 技术                                     |
+| ------------------ | ---------------------------------------- |
+| 仓库与包管理       | pnpm workspace                           |
+| 全栈应用           | Next.js（App Router）、React、TypeScript |
+| UI 与客户端状态    | Tailwind CSS、React（组件内 state）、原生 `fetch` |
+| 数据访问与基础设施 | Prisma、PostgreSQL、Redis                |
+| 代码规范           | ESLint、Prettier                         |
+| 本地编排与交付     | Docker、Docker Compose                   |
 
 业务代码统一使用 **TypeScript** 编写。默认采用全栈架构：页面渲染、服务端数据获取、后端接口与业务编排尽量在同一应用内完成；仅在存在明确拆分收益时，才新增独立服务包。实现时应保持依赖与运行时版本可复现（`pnpm-lock.yaml`、镜像标签策略等），具体以项目内配置文件为准。
 
