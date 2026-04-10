@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { jsonResponseForPrismaUniqueViolation } from "@/lib/prisma-errors";
 
 const patchSchema = z.object({
   name: z.string().min(1).optional(),
@@ -36,7 +37,7 @@ export async function GET(
 }
 
 /**
- * PATCH /api/categories/[id]：更新分类；若传 `name` 则先 trim，trim 后为空返回 400。
+ * PATCH /api/categories/[id]：更新分类；若传 `name` 则先 trim，trim 后为空返回 400；改名违反未删除名称唯一时返回 409。
  */
 export async function PATCH(
   req: Request,
@@ -66,11 +67,17 @@ export async function PATCH(
   if (parsed.data.desc !== undefined) {
     data.desc = parsed.data.desc;
   }
-  const row = await prisma.category.update({
-    where: { id },
-    data,
-  });
-  return NextResponse.json({ item: row });
+  try {
+    const row = await prisma.category.update({
+      where: { id },
+      data,
+    });
+    return NextResponse.json({ item: row });
+  } catch (e) {
+    const conflict = jsonResponseForPrismaUniqueViolation(e);
+    if (conflict) return conflict;
+    throw e;
+  }
 }
 
 /**

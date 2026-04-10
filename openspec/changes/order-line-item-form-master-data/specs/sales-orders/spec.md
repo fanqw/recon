@@ -1,5 +1,7 @@
 # sales-orders（增量）
 
+> **单一真源**：合入后的权威规范见 `openspec/specs/sales-orders/spec.md`（含列表 JSON 蛇形键名 `line_total`、标红与合计规则）。本文档保留为变更过程中的增量记录。
+
 ## MODIFIED Requirements
 
 ### Requirement: 订单明细的维护与关联

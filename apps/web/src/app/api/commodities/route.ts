@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { jsonResponseForPrismaUniqueViolation } from "@/lib/prisma-errors";
 
 const createSchema = z.object({
   name: z.string().min(1),
@@ -67,9 +68,15 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
-  const row = await prisma.commodity.create({
-    data: { name, desc, categoryId, unitId },
-    include: { category: true, unit: true },
-  });
-  return NextResponse.json({ item: row }, { status: 201 });
+  try {
+    const row = await prisma.commodity.create({
+      data: { name, desc, categoryId, unitId },
+      include: { category: true, unit: true },
+    });
+    return NextResponse.json({ item: row }, { status: 201 });
+  } catch (e) {
+    const conflict = jsonResponseForPrismaUniqueViolation(e);
+    if (conflict) return conflict;
+    throw e;
+  }
 }

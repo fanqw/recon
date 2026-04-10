@@ -1,5 +1,7 @@
 # master-data（增量）
 
+> **单一真源**：合入后的权威规范见 `openspec/specs/master-data/spec.md`（含 POST/PATCH 唯一冲突 **409** 等）。本文档保留为变更过程中的增量记录。
+
 ## ADDED Requirements
 
 ### Requirement: 主数据列表的关键字检索（下拉）

@@ -1,5 +1,7 @@
 ## Context
 
+**以下为变更前基线**（描述的是引入本变更之前 v2 的状态，供与下文 Goals/Decisions 对照；**合入后的权威叙述**见仓库根目录 `openspec/specs/sales-orders/spec.md`。）
+
 v2 当前 `OrderCommodity` 仅存 `price`（单价）、`count`，行展示金额由 `aggregateOrderLinesForUi` 用单价×数量推导 `total_price`（四舍五入到整数）与 `origin_total_price`（不四舍五入）；标红依赖二者不等。新建明细 API 仅接受已有 `commodityId`。本变更引入持久化 **`lineTotal`**（行展示/合计用金额），标红改为 **`lineTotal` 与由单价×数量按现有规则算出的 `total_price`（舍入基准）是否一致**；不增加独立的 `amountAdjusted` 字段。
 
 ## Goals / Non-Goals

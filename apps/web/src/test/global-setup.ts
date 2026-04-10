@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { execSync, spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createServer } from "node:net";
 import path from "node:path";
@@ -7,6 +7,29 @@ import type { TestProject } from "vitest/node";
 import { registerTestServerProcess, stopTestServer } from "./global-teardown";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+/** 与仓库根目录 `docker-compose.yml` 中 postgres 服务默认账号一致，便于本地零配置跑集成测。 */
+const DEFAULT_TEST_DATABASE_URL =
+  "postgresql://recon:recon@127.0.0.1:5432/recon";
+
+/** iron-session 要求足够长的密码；仅用于 Vitest 自启子进程，生产须使用强随机值。 */
+const DEFAULT_TEST_SESSION_SECRET =
+  "vitest-recon-session-secret-32-characters-min!!";
+
+/**
+ * 在启动 Next 子进程前迁移并种子，避免 `login` 等接口因空库/缺表返回 500。
+ */
+function prepareDatabaseForVitest(webRoot: string, env: NodeJS.ProcessEnv): void {
+  const opts = { cwd: webRoot, env, stdio: "inherit" as const };
+  try {
+    execSync("pnpm exec prisma migrate deploy", opts);
+    execSync("pnpm exec prisma db seed", opts);
+  } catch {
+    throw new Error(
+      "Vitest 全局 setup：数据库迁移或种子失败。请在仓库根目录执行 `docker compose up -d postgres`，或配置可用的 `DATABASE_URL`（默认可用 postgresql://recon:recon@127.0.0.1:5432/recon），并确保 `apps/web/.env` 或环境中含 `SESSION_SECRET`（≥32 字符）；详见 apps/web/.env.example。"
+    );
+  }
+}
 
 /**
  * 读取 `apps/web/.env` 键值并合并进环境（Vitest 进程默认不会自动加载该文件，子进程需显式注入 `DATABASE_URL` 等）。
@@ -123,12 +146,17 @@ export default async function setup(project: TestProject): Promise<() => Promise
   const baseURL = `http://127.0.0.1:${port}`;
   const childEnv = loadWebEnv(webRoot);
   /** 避免子进程继承 Vitest 注入的 `NODE_OPTIONS`（会导致 Next 启动失败）。 */
-  const { NODE_OPTIONS: _ignore, ...parentEnv } = process.env;
-  const env = {
+  const parentEnv = { ...process.env };
+  delete parentEnv.NODE_OPTIONS;
+  const env: NodeJS.ProcessEnv = {
     ...parentEnv,
     ...childEnv,
     NEXT_TELEMETRY_DISABLED: "1",
   };
+  env.DATABASE_URL = env.DATABASE_URL || DEFAULT_TEST_DATABASE_URL;
+  env.SESSION_SECRET = env.SESSION_SECRET || DEFAULT_TEST_SESSION_SECRET;
+
+  prepareDatabaseForVitest(webRoot, env);
 
   const nextCli = path.join(webRoot, "node_modules", "next", "dist", "bin", "next");
   let stderrBuf = "";

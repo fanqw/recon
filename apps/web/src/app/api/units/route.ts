@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { jsonResponseForPrismaUniqueViolation } from "@/lib/prisma-errors";
 
 const createSchema = z.object({
   name: z.string().min(1),
@@ -51,6 +52,12 @@ export async function POST(req: Request) {
   if (!name) {
     return NextResponse.json({ error: "名称不能为空" }, { status: 400 });
   }
-  const row = await prisma.unit.create({ data: { ...parsed.data, name } });
-  return NextResponse.json({ item: row }, { status: 201 });
+  try {
+    const row = await prisma.unit.create({ data: { ...parsed.data, name } });
+    return NextResponse.json({ item: row }, { status: 201 });
+  } catch (e) {
+    const conflict = jsonResponseForPrismaUniqueViolation(e);
+    if (conflict) return conflict;
+    throw e;
+  }
 }

@@ -1179,7 +1179,7 @@ git commit -m "feat(web): 实现商品 CRUD API"
 
 - [ ] **Step 3: `orders/[id]/lines/route.ts`**
 
-- `GET`：返回该订单下未删除明细列表，**每条记录须包含 Task 14 Step 6 所需字段**；**聚合字段与数值含义以 v1** `v1/ledger-backend/controllers/order_commodity.controller.js` **`findAll` 管道为准**（含 `origin_total_price`、`total_price`、`total_category_price`、`total_order_price` 及嵌套的 `commodity` / `category` / `unit`）。实现可放在 Prisma 查询 + `apps/web/src/lib/order-lines/aggregate.ts` 等模块，**关键步骤中文注释**并注明对应 v1 段。
+- `GET`：返回该订单下未删除明细列表，**每条记录须包含 Task 14 Step 6 所需字段**；**聚合字段与数值含义以 v1** `v1/ledger-backend/controllers/order_commodity.controller.js` **`findAll` 管道为准**（含 `origin_total_price`、`total_price`、`total_category_price`、`total_order_price` 及嵌套的 `commodity` / `category` / `unit`）。实现可放在 Prisma 查询 + `apps/web/src/lib/order-lines/aggregate.ts` 等模块，**关键步骤中文注释**并注明对应 v1 段。**当前以 `openspec/specs/sales-orders/spec.md` 为准**：若字段名、合计或标红规则与本文/v1 叙述有出入，以实现与该主规范一致为准（如列表 JSON 蛇形 `line_total`、标红为 `line_total` 与 `total_price` 比较等）。
 - `POST`：`commodityId`、`count`（int 正数）、`price`（字符串或 number，用 `z.coerce` + `Decimal` 写入）、`desc` 可选；校验订单与商品存在且未删除
 
 - [ ] **Step 4: `order-lines/[id]/route.ts`**
@@ -1266,6 +1266,8 @@ git commit -m "feat(web): 添加登录页与分类管理页骨架"
 
 - [ ] **Step 6: 订单详情页 — 金额取整与标红（以 v1 为准）**
 
+**当前以 `openspec/specs/sales-orders/spec.md` 为准**（订单明细行金额、列表 JSON、合计与标红）；以下「以 v1 为准」段落保留为当时计划的参照，若与主规范冲突以实现与主规范一致。
+
 **以后端 v1 聚合结果为真源**：`v1/ledger-backend/controllers/order_commodity.controller.js` 中 `findAll` 对 `total_price`、`origin_total_price` 的定义与计算顺序；前端展示与标红条件 **以 v1 页面为准**：`v1/ledger-frontend/src/pages/order/order-detail/index.tsx` 中金额列 `totalPrice !== record?.origin_total_price` 时 **红色**，否则默认色。v2 应用层用 Prisma/SQL 复现同一数值，**不得**改用其它取整方式或标红规则。
 
 **API 要求**：Task 12 中 `GET /api/orders/[id]/lines`（或等价列表接口）的响应 **必须** 对每一行携带 `total_price` 与 `origin_total_price`（及 `total_category_price`、`total_order_price` 若前端需要），否则前端无法标红与合并列。若 Task 12 已实现但未含字段，在本 Step 中 **回填后端聚合** 再联调。
@@ -1283,6 +1285,8 @@ git commit -m "feat(web): 添加登录页与分类管理页骨架"
 | **金额标红** | 当 **`total_price !== origin_total_price`** 时，该格 **字体色为红**（与页面金额列逻辑一致）。 |
 | **合并单元格** | **分类**、**分类金额** 按分类分组与页面 `rowSpan` 规则一致；**总金额** 仅在首行数据行显示并纵向合并覆盖全部明细行（与页面一致）。 |
 | **任意条数** | 不假设行数上限；合并与样式算法须对任意 N 行可运行。 |
+
+**说明**：金额列标红与导出规则 **现行以 `openspec/specs/sales-orders/spec.md` 为准**（通常为 **`line_total` 与舍入基准 `total_price` 不等** 时标红）；上表中的 v1 公式仅作历史对照。
 
 页面上提供「导出 Excel」按钮，文件名建议含订单 id 或名称。**关键步骤中文注释**；可抽复用函数：根据行数据计算每列 `rowSpan` 映射，避免与 UI 逻辑漂移（优先与 `OrderDetailTable` 共用同一聚合数据结构）。
 

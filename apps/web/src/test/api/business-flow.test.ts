@@ -285,4 +285,182 @@ describe("主数据与订单 API 最小成功路径", () => {
     expect(unitBad.status).toBe(400);
     expect(comBad.status).toBe(400);
   });
+
+  it("POST 主数据违反未删除名称唯一时返回 409", async () => {
+    const baseUrl = inject("testBaseUrl");
+    const cookie = await loginAsAdmin(baseUrl);
+    const suf = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const catName = `uniq-cat-${suf}`;
+
+    const c1 = await postJsonWithCookie(
+      baseUrl,
+      "/api/categories",
+      { name: catName },
+      cookie,
+    );
+    expect(c1.status).toBe(201);
+    const cDup = await postJsonWithCookie(
+      baseUrl,
+      "/api/categories",
+      { name: catName },
+      cookie,
+    );
+    expect(cDup.status).toBe(409);
+
+    const unitName = `uniq-unit-${suf}`;
+    expect(
+      (await postJsonWithCookie(baseUrl, "/api/units", { name: unitName }, cookie))
+        .status,
+    ).toBe(201);
+    expect(
+      (await postJsonWithCookie(baseUrl, "/api/units", { name: unitName }, cookie))
+        .status,
+    ).toBe(409);
+
+    const cat = (await c1.json()) as { item: { id: string } };
+    const unit = await postJsonWithCookie(
+      baseUrl,
+      "/api/units",
+      { name: `uniq-unit2-${suf}` },
+      cookie,
+    );
+    expect(unit.status).toBe(201);
+    const unitBody = (await unit.json()) as { item: { id: string } };
+    const comName = `uniq-com-${suf}`;
+    expect(
+      (
+        await postJsonWithCookie(
+          baseUrl,
+          "/api/commodities",
+          {
+            name: comName,
+            categoryId: cat.item.id,
+            unitId: unitBody.item.id,
+          },
+          cookie,
+        )
+      ).status,
+    ).toBe(201);
+    expect(
+      (
+        await postJsonWithCookie(
+          baseUrl,
+          "/api/commodities",
+          {
+            name: comName,
+            categoryId: cat.item.id,
+            unitId: unitBody.item.id,
+          },
+          cookie,
+        )
+      ).status,
+    ).toBe(409);
+  });
+
+  it("POST 分类 trim 后与已有未删除记录同名时返回 409", async () => {
+    const baseUrl = inject("testBaseUrl");
+    const cookie = await loginAsAdmin(baseUrl);
+    const suf = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const logical = `trim-dup-${suf}`;
+    const first = await postJsonWithCookie(
+      baseUrl,
+      "/api/categories",
+      { name: `  ${logical}  ` },
+      cookie,
+    );
+    expect(first.status).toBe(201);
+    const second = await postJsonWithCookie(
+      baseUrl,
+      "/api/categories",
+      { name: logical },
+      cookie,
+    );
+    expect(second.status).toBe(409);
+  });
+
+  it("PATCH 主数据改名为与另一未删除记录冲突时返回 409", async () => {
+    const baseUrl = inject("testBaseUrl");
+    const cookie = await loginAsAdmin(baseUrl);
+    const suf = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+    const catA = await postJsonWithCookie(
+      baseUrl,
+      "/api/categories",
+      { name: `pconf-cat-a-${suf}` },
+      cookie,
+    );
+    const catB = await postJsonWithCookie(
+      baseUrl,
+      "/api/categories",
+      { name: `pconf-cat-b-${suf}` },
+      cookie,
+    );
+    expect(catA.status).toBe(201);
+    expect(catB.status).toBe(201);
+    const bBody = (await catB.json()) as { item: { id: string } };
+
+    const catPatch = await patchJsonWithCookie(
+      baseUrl,
+      `/api/categories/${bBody.item.id}`,
+      { name: `pconf-cat-a-${suf}` },
+      cookie,
+    );
+    expect(catPatch.status).toBe(409);
+
+    const uA = await postJsonWithCookie(
+      baseUrl,
+      "/api/units",
+      { name: `pconf-unit-a-${suf}` },
+      cookie,
+    );
+    const uB = await postJsonWithCookie(
+      baseUrl,
+      "/api/units",
+      { name: `pconf-unit-b-${suf}` },
+      cookie,
+    );
+    expect(uA.status).toBe(201);
+    expect(uB.status).toBe(201);
+    const uBodyB = (await uB.json()) as { item: { id: string } };
+    const unitPatch = await patchJsonWithCookie(
+      baseUrl,
+      `/api/units/${uBodyB.item.id}`,
+      { name: `pconf-unit-a-${suf}` },
+      cookie,
+    );
+    expect(unitPatch.status).toBe(409);
+
+    const cat = (await catA.json()) as { item: { id: string } };
+    const unit = (await uA.json()) as { item: { id: string } };
+    const comA = await postJsonWithCookie(
+      baseUrl,
+      "/api/commodities",
+      {
+        name: `pconf-com-a-${suf}`,
+        categoryId: cat.item.id,
+        unitId: unit.item.id,
+      },
+      cookie,
+    );
+    const comB = await postJsonWithCookie(
+      baseUrl,
+      "/api/commodities",
+      {
+        name: `pconf-com-b-${suf}`,
+        categoryId: cat.item.id,
+        unitId: unit.item.id,
+      },
+      cookie,
+    );
+    expect(comA.status).toBe(201);
+    expect(comB.status).toBe(201);
+    const comBodyB = (await comB.json()) as { item: { id: string } };
+    const comPatch = await patchJsonWithCookie(
+      baseUrl,
+      `/api/commodities/${comBodyB.item.id}`,
+      { name: `pconf-com-a-${suf}` },
+      cookie,
+    );
+    expect(comPatch.status).toBe(409);
+  });
 });

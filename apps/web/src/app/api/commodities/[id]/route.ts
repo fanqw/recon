@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { jsonResponseForPrismaUniqueViolation } from "@/lib/prisma-errors";
 
 const patchSchema = z.object({
   name: z.string().min(1).optional(),
@@ -39,7 +40,7 @@ export async function GET(
 }
 
 /**
- * PATCH /api/commodities/[id]：更新商品；若改外键则校验分类与单位存在；若传 `name` 则先 trim，trim 后为空返回 400。
+ * PATCH /api/commodities/[id]：更新商品；若改外键则校验分类与单位存在；若传 `name` 则先 trim，trim 后为空返回 400；更新后违反商品三元组唯一时返回 409。
  */
 export async function PATCH(
   req: Request,
@@ -81,17 +82,23 @@ export async function PATCH(
     nextName = trimmed;
   }
 
-  const row = await prisma.commodity.update({
-    where: { id },
-    data: {
-      name: nextName,
-      desc: desc !== undefined ? desc : existing.desc,
-      categoryId: nextCategoryId,
-      unitId: nextUnitId,
-    },
-    include: { category: true, unit: true },
-  });
-  return NextResponse.json({ item: row });
+  try {
+    const row = await prisma.commodity.update({
+      where: { id },
+      data: {
+        name: nextName,
+        desc: desc !== undefined ? desc : existing.desc,
+        categoryId: nextCategoryId,
+        unitId: nextUnitId,
+      },
+      include: { category: true, unit: true },
+    });
+    return NextResponse.json({ item: row });
+  } catch (e) {
+    const conflict = jsonResponseForPrismaUniqueViolation(e);
+    if (conflict) return conflict;
+    throw e;
+  }
 }
 
 /**
