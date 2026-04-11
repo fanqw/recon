@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 
 const patchSchema = z.object({
   name: z.string().min(1).optional(),
+  purchasePlaceId: z.string().trim().min(1).optional(),
   desc: z.string().optional(),
 });
 
@@ -31,6 +32,7 @@ export async function GET(
   const item = await prisma.order.findFirst({
     where: { id, deleted: false },
     include: {
+      purchasePlace: true,
       orderCommodities: {
         where: { deleted: false, commodity: { deleted: false } },
         include: {
@@ -64,13 +66,24 @@ export async function PATCH(
     where: { id, deleted: false },
   });
   if (!existing) return NextResponse.json({ error: "未找到" }, { status: 404 });
-  const { name, desc } = parsed.data;
+  const { name, desc, purchasePlaceId } = parsed.data;
+  if (purchasePlaceId !== undefined) {
+    const purchasePlace = await prisma.purchasePlace.findFirst({
+      where: { id: purchasePlaceId, deleted: false },
+      select: { id: true },
+    });
+    if (!purchasePlace) {
+      return NextResponse.json({ error: "进货地无效" }, { status: 400 });
+    }
+  }
   const item = await prisma.order.update({
     where: { id },
     data: {
       name: name ?? existing.name,
+      ...(purchasePlaceId !== undefined ? { purchasePlaceId } : {}),
       desc: desc !== undefined ? desc : existing.desc,
     },
+    include: { purchasePlace: true },
   });
   return NextResponse.json({ item });
 }

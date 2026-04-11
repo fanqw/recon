@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 
 const createSchema = z.object({
   name: z.string().min(1),
+  purchasePlaceId: z.string().trim().min(1),
   desc: z.string().optional(),
 });
 
@@ -26,13 +27,14 @@ export async function GET() {
   if (unauthorized) return unauthorized;
   const items = await prisma.order.findMany({
     where: { deleted: false },
+    include: { purchasePlace: true },
     orderBy: { updatedAt: "desc" },
   });
   return NextResponse.json({ items });
 }
 
 /**
- * POST /api/orders：创建订单（名称必填，描述可选）。
+ * POST /api/orders：创建订单（名称与进货地必填，描述可选）。
  */
 export async function POST(req: Request) {
   const unauthorized = await guard();
@@ -42,9 +44,17 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "请求体无效" }, { status: 400 });
   }
-  const { name, desc } = parsed.data;
+  const { name, desc, purchasePlaceId } = parsed.data;
+  const purchasePlace = await prisma.purchasePlace.findFirst({
+    where: { id: purchasePlaceId, deleted: false },
+    select: { id: true },
+  });
+  if (!purchasePlace) {
+    return NextResponse.json({ error: "进货地无效" }, { status: 400 });
+  }
   const item = await prisma.order.create({
-    data: { name, desc },
+    data: { name, desc, purchasePlaceId },
+    include: { purchasePlace: true },
   });
   return NextResponse.json({ item }, { status: 201 });
 }
