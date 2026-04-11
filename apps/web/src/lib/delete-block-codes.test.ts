@@ -8,6 +8,8 @@ import {
 describe("delete-block-codes", () => {
   it("能识别合法错误码", () => {
     expect(isDeleteBlockCode("CATEGORY_IN_USE")).toBe(true);
+    expect(isDeleteBlockCode("UNIT_IN_USE")).toBe(true);
+    expect(isDeleteBlockCode("COMMODITY_IN_USE")).toBe(true);
     expect(isDeleteBlockCode("PURCHASE_PLACE_IN_USE")).toBe(true);
     expect(isDeleteBlockCode("X")).toBe(false);
   });
