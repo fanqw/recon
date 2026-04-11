@@ -2,18 +2,17 @@
 
 import { Select } from "@arco-design/web-react";
 import { useEffect, useMemo, useState } from "react";
+import {
+  buildMasterDataComboboxOptions,
+  type MasterDataListItem,
+} from "@/lib/master-data/combobox-options";
+
+export type { MasterDataListItem } from "@/lib/master-data/combobox-options";
 
 export type MasterDataSelection =
   | { kind: "id"; id: string; label: string }
   | { kind: "free"; text: string }
   | null;
-
-export type MasterDataListItem = {
-  id: string;
-  name: string;
-  category?: { id: string; name: string };
-  unit?: { id: string; name: string };
-};
 
 type Props = {
   label: string;
@@ -60,12 +59,7 @@ export function MasterDataCombobox({
     value?.kind === "id" ? `id:${value.id}` : value?.kind === "free" ? `free:${value.text}` : undefined;
 
   const options = useMemo(() => {
-    const opts = items.map((row) => ({ value: `id:${row.id}`, label: row.name, row }));
-    const q = query.trim();
-    if (q.length > 0 && !items.some((i) => i.name === q)) {
-      opts.unshift({ value: `free:${q}`, label: `使用「${q}」`, row: null });
-    }
-    return opts;
+    return buildMasterDataComboboxOptions({ items, query });
   }, [items, query]);
 
   return (
