@@ -40,14 +40,14 @@
 - PostgreSQL：主业务数据存储。
 - Redis：缓存、会话、限流或异步辅助能力。
 - Docker Compose：本地开发和 CI/CD 中统一拉起依赖环境。
-- 本地环境变量：请基于 `.env.example` 复制并按实际环境补齐 `DATABASE_URL`、`REDIS_URL` 和 `SESSION_SECRET`。
+- 本地环境变量：源模板位于仓库根目录 `.env.example`，请复制到 `apps/web/.env`，并按实际环境补齐 `DATABASE_URL`、`REDIS_URL` 和 `SESSION_SECRET`。
 
 后续新增环境变量、镜像标签、服务端口、数据卷或初始化脚本时，必须同步更新本文档。
 
 ## 环境准备与常用命令
 
 1. **依赖服务**：在仓库根目录使用 Docker Compose 启动 PostgreSQL / Redis（具体文件以仓库内 `compose` 配置为准）。
-2. **应用环境变量**：将 `.env.example` 复制为 `apps/web/.env`，按本地环境填写 `DATABASE_URL`、`SESSION_SECRET`（长度须符合 iron-session 要求，通常不少于 32 字符）等。
+2. **应用环境变量**：将仓库根目录 `.env.example` 复制为 `apps/web/.env`，按本地环境填写 `DATABASE_URL`、`SESSION_SECRET`（长度须符合 iron-session 要求，通常不少于 32 字符）等。
 3. **数据库**：在仓库根目录依次执行 `pnpm db:migrate`（或等效的 Prisma migrate）、`pnpm db:seed` 写入管理员与语义化中文 mock 数据（会先清空历史业务数据，再写入主数据与订单样例）。
 4. **开发**：`pnpm dev` 启动全栈应用（默认由 `apps/web` 提供 Next.js 开发服务器）。
 5. **测试**：
@@ -59,7 +59,7 @@
 
 ## 当前业务约束
 
-- 订单创建时 `purchasePlaceId` 必填，且必须指向未删除进货地。
+- 订单创建与更新时 `purchasePlaceId` 必填，且必须指向未删除进货地。
 - 进货地在未删除记录范围内满足组合唯一：`进货地(place) + 市场名称(market_name)`。
 - 已关联记录不可删除：分类/单位/商品/进货地在被有效业务数据引用时，删除接口返回 `409`。
 - 删除拦截使用统一错误码：`CATEGORY_IN_USE`、`UNIT_IN_USE`、`COMMODITY_IN_USE`、`PURCHASE_PLACE_IN_USE`。

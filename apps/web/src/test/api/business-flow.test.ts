@@ -97,6 +97,101 @@ describe("主数据与订单 API 最小成功路径", () => {
     expect(res.status).toBe(400);
   });
 
+  it("PATCH /api/orders/[id] 缺少 purchasePlaceId 返回 400", async () => {
+    const baseUrl = inject("testBaseUrl");
+    const cookie = await loginAsAdmin(baseUrl);
+    const suf = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const purchasePlaceId = await createPurchasePlace(baseUrl, cookie, suf);
+
+    const createOrder = await postJsonWithCookie(
+      baseUrl,
+      "/api/orders",
+      { name: `patch-ord-missing-place-${suf}`, purchasePlaceId },
+      cookie,
+    );
+    expect(createOrder.status).toBe(201);
+    const created = (await createOrder.json()) as { item: { id: string } };
+
+    const patch = await patchJsonWithCookie(
+      baseUrl,
+      `/api/orders/${created.item.id}`,
+      { name: `patch-ord-missing-place-updated-${suf}` },
+      cookie,
+    );
+    expect(patch.status).toBe(400);
+  });
+
+  it("PATCH /api/orders/[id] 使用无效或已删除 purchasePlaceId 返回 400", async () => {
+    const baseUrl = inject("testBaseUrl");
+    const cookie = await loginAsAdmin(baseUrl);
+    const suf = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const purchasePlaceId = await createPurchasePlace(baseUrl, cookie, suf);
+
+    const createOrder = await postJsonWithCookie(
+      baseUrl,
+      "/api/orders",
+      { name: `patch-ord-invalid-place-${suf}`, purchasePlaceId },
+      cookie,
+    );
+    expect(createOrder.status).toBe(201);
+    const created = (await createOrder.json()) as { item: { id: string } };
+
+    const invalidPatch = await patchJsonWithCookie(
+      baseUrl,
+      `/api/orders/${created.item.id}`,
+      { purchasePlaceId: "clnonexistent000000000000000" },
+      cookie,
+    );
+    expect(invalidPatch.status).toBe(400);
+
+    const deletedPlaceId = await createPurchasePlace(baseUrl, cookie, `${suf}-del`);
+    const deleteRes = await fetchWithCookie(
+      baseUrl,
+      `/api/purchase-places/${deletedPlaceId}`,
+      { method: "DELETE" },
+      cookie,
+    );
+    expect(deleteRes.status).toBe(200);
+
+    const deletedPatch = await patchJsonWithCookie(
+      baseUrl,
+      `/api/orders/${created.item.id}`,
+      { purchasePlaceId: deletedPlaceId },
+      cookie,
+    );
+    expect(deletedPatch.status).toBe(400);
+  });
+
+  it("PATCH /api/orders/[id] 传入有效 purchasePlaceId 可更新", async () => {
+    const baseUrl = inject("testBaseUrl");
+    const cookie = await loginAsAdmin(baseUrl);
+    const suf = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const purchasePlaceId = await createPurchasePlace(baseUrl, cookie, `${suf}-old`);
+    const nextPurchasePlaceId = await createPurchasePlace(baseUrl, cookie, `${suf}-new`);
+
+    const createOrder = await postJsonWithCookie(
+      baseUrl,
+      "/api/orders",
+      { name: `patch-ord-valid-place-${suf}`, purchasePlaceId },
+      cookie,
+    );
+    expect(createOrder.status).toBe(201);
+    const created = (await createOrder.json()) as { item: { id: string } };
+
+    const patch = await patchJsonWithCookie(
+      baseUrl,
+      `/api/orders/${created.item.id}`,
+      { purchasePlaceId: nextPurchasePlaceId },
+      cookie,
+    );
+    expect(patch.status).toBe(200);
+    const body = (await patch.json()) as {
+      item: { purchasePlaceId: string; purchasePlace: { id: string } };
+    };
+    expect(body.item.purchasePlaceId).toBe(nextPurchasePlaceId);
+    expect(body.item.purchasePlace.id).toBe(nextPurchasePlaceId);
+  });
+
   it("串联：创建分类/单位/商品、订单与明细，GET lines 含聚合字段", async () => {
     const baseUrl = inject("testBaseUrl");
     const cookie = await loginAsAdmin(baseUrl);

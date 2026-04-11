@@ -147,6 +147,40 @@ describe("逻辑删除后默认列表不再包含", () => {
     expect(itemsAfter.some((r) => r.id === com.item.id)).toBe(false);
   });
 
+  it("DELETE /api/purchase-places/[id] 后默认列表不含该进货地", async () => {
+    const baseUrl = inject("testBaseUrl");
+    const cookie = await loginAsAdmin(baseUrl);
+    const suf = suffix();
+    const purchasePlaceId = await createPurchasePlace(baseUrl, cookie, suf);
+
+    const listBefore = await fetchWithCookie(
+      baseUrl,
+      "/api/purchase-places",
+      {},
+      cookie
+    );
+    const itemsBefore = ((await listBefore.json()) as { items: { id: string }[] })
+      .items;
+    expect(itemsBefore.some((r) => r.id === purchasePlaceId)).toBe(true);
+
+    const del = await deleteWithCookie(
+      baseUrl,
+      `/api/purchase-places/${purchasePlaceId}`,
+      cookie
+    );
+    expect(del.status).toBe(200);
+
+    const listAfter = await fetchWithCookie(
+      baseUrl,
+      "/api/purchase-places",
+      {},
+      cookie
+    );
+    const itemsAfter = ((await listAfter.json()) as { items: { id: string }[] })
+      .items;
+    expect(itemsAfter.some((r) => r.id === purchasePlaceId)).toBe(false);
+  });
+
   it("DELETE /api/orders/[id] 后列表不含该订单", async () => {
     const baseUrl = inject("testBaseUrl");
     const cookie = await loginAsAdmin(baseUrl);

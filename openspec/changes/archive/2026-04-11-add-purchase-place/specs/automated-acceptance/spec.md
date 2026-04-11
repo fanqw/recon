@@ -1,5 +1,5 @@
-# automated-acceptance
-## Requirements
+## MODIFIED Requirements
+
 ### Requirement: 核心 API 的自动化验证
 系统 SHALL 提供可在本地与 CI 中重复执行的自动化测试，验证主要 HTTP API（或等价服务端入口）在已认证与未认证场景下的行为符合 `admin-authentication`、`master-data`、`sales-orders` 中的关键路径，并覆盖进货地与删除拦截场景。
 
@@ -29,13 +29,3 @@
 #### Scenario: 删除受阻时页面可提示
 - **WHEN** E2E 在页面中尝试删除被未删除记录关联的主数据
 - **THEN** 测试 SHALL 能够观察到失败提示（或等效错误反馈），且页面状态与数据保持一致
-
-### Requirement: 测试运行的文档与入口命令
-
-仓库 SHALL 在 `README.md`（或项目约定位置）中说明如何安装依赖、准备数据库、启动应用，以及执行 API 测试与 E2E 的命令；根目录或 `apps/web` SHALL 提供 npm/pnpm 脚本入口以便一键运行。
-
-#### Scenario: 新贡献者可按文档运行测试
-
-- **WHEN** 贡献者遵循文档中的环境准备步骤并执行文档中写明的测试命令
-- **THEN** 其 SHALL 能够在无额外未文档化步骤的情况下启动测试命令（允许配置 `.env` 等已说明项）
-
