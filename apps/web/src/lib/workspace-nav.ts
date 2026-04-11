@@ -101,9 +101,14 @@ export function getWorkspaceBreadcrumbs(pathname: string): WorkspaceBreadcrumbIt
 export function normalizeWorkspaceBreadcrumbs(
   items: WorkspaceBreadcrumbItem[],
 ): WorkspaceBreadcrumbItem[] {
-  if (items.length >= 2 && items[0].label === workspaceHome.label && items[1].label === workspaceHome.label) {
-    return items.slice(1);
+  const normalized = [...items];
+  while (
+    normalized.length >= 2 &&
+    normalized[0].label === workspaceHome.label &&
+    normalized[1].label === workspaceHome.label
+  ) {
+    normalized.shift();
   }
 
-  return items;
+  return normalized;
 }

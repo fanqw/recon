@@ -80,9 +80,20 @@ async function createCommodity(
 
 async function expectBreadcrumb(page: Page, texts: string[]) {
   const breadcrumb = page.getByLabel("页面位置");
-  for (const text of texts) {
-    await expect(breadcrumb).toContainText(text);
+  const items = breadcrumb.getByRole("listitem");
+  await expect(items).toHaveCount(texts.length);
+  for (const [index, text] of texts.entries()) {
+    await expect(items.nth(index)).toHaveText(text);
   }
+}
+
+async function breadcrumbItemTexts(page: Page) {
+  const breadcrumb = page.getByLabel("页面位置");
+  return breadcrumb.locator('[role="listitem"]').evaluateAll((items) =>
+    items
+      .map((item) => (item.textContent ?? "").replace(/\s+/g, " ").trim())
+      .filter(Boolean),
+  );
 }
 
 async function rowTexts(page: Page) {
@@ -398,9 +409,14 @@ test("侧栏无对账系统标题且面包屑无重复工作台前缀", async ({
   const sidebar = page.getByTestId("dashboard-sidebar");
   await expect(sidebar).not.toContainText("对账系统");
 
-  const breadcrumb = page.getByLabel("页面位置");
-  await expect(breadcrumb).toContainText("工作台");
-  await expect(breadcrumb).not.toContainText("工作台 / 工作台");
+  const items = await breadcrumbItemTexts(page);
+  await expect(items).toEqual([
+    "工作台",
+    "物料管理",
+    "商品分类",
+  ]);
+  await expect(items).toHaveLength(3);
+  await expect(items.filter((text) => text === "工作台")).toHaveLength(1);
 });
 
 test("导航子菜单点击与多路径面包屑保持一致", async ({ page }) => {
