@@ -32,6 +32,64 @@ describe("主数据与订单 API 最小成功路径", () => {
     expect(res.status).toBe(401);
   });
 
+  it("seed 基线包含中文语义化主数据与联调订单样本", async () => {
+    const baseUrl = inject("testBaseUrl");
+    const cookie = await loginAsAdmin(baseUrl);
+
+    const [categoriesRes, unitsRes, commoditiesRes, purchasePlacesRes, ordersRes] =
+      await Promise.all([
+        fetchWithCookie(baseUrl, "/api/categories", {}, cookie),
+        fetchWithCookie(baseUrl, "/api/units", {}, cookie),
+        fetchWithCookie(baseUrl, "/api/commodities", {}, cookie),
+        fetchWithCookie(baseUrl, "/api/purchase-places", {}, cookie),
+        fetchWithCookie(baseUrl, "/api/orders", {}, cookie),
+      ]);
+
+    expect(categoriesRes.status).toBe(200);
+    expect(unitsRes.status).toBe(200);
+    expect(commoditiesRes.status).toBe(200);
+    expect(purchasePlacesRes.status).toBe(200);
+    expect(ordersRes.status).toBe(200);
+
+    const categoriesBody = (await categoriesRes.json()) as {
+      items: { name: string }[];
+    };
+    const unitsBody = (await unitsRes.json()) as { items: { name: string }[] };
+    const commoditiesBody = (await commoditiesRes.json()) as {
+      items: { name: string }[];
+    };
+    const purchasePlacesBody = (await purchasePlacesRes.json()) as {
+      items: { place: string; marketName: string }[];
+    };
+    const ordersBody = (await ordersRes.json()) as {
+      items: { name: string }[];
+    };
+
+    expect(categoriesBody.items.map((item) => item.name)).toEqual(
+      expect.arrayContaining(["水", "蔬", "副", "肉"]),
+    );
+    expect(unitsBody.items.map((item) => item.name)).toEqual(
+      expect.arrayContaining(["斤", "件", "箱"]),
+    );
+    expect(commoditiesBody.items.map((item) => item.name)).toEqual(
+      expect.arrayContaining(["苹果", "生菜", "米", "面", "猪肉"]),
+    );
+    expect(
+      purchasePlacesBody.items.some(
+        (item) => item.place === "武汉" && item.marketName === "中心港市场",
+      ),
+    ).toBe(true);
+    expect(
+      purchasePlacesBody.items.some(
+        (item) => item.place === "洛阳" && item.marketName === "宏进市场",
+      ),
+    ).toBe(true);
+    expect(ordersBody.items.length).toBeGreaterThanOrEqual(2);
+    expect(ordersBody.items.map((item) => item.name)).toEqual(
+      expect.arrayContaining(["武汉中心港到货单", "洛阳宏进备货单"]),
+    );
+  });
+
   it("认证后可列出单位且 items 为数组", async () => {
     const baseUrl = inject("testBaseUrl");
     const cookie = await loginAsAdmin(baseUrl);
