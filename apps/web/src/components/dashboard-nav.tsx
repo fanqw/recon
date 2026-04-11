@@ -1,63 +1,46 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import {
+  IconCalendar,
+  IconList,
+  IconLocation,
+  IconStorage,
+  IconTags,
+} from "@arco-design/web-react/icon";
+import { Menu } from "@arco-design/web-react";
+import { usePathname, useRouter } from "next/navigation";
 
-type Props = {
-  /** 当前登录用户名，用于页眉展示 */
-  username: string;
-};
+const navItems = [
+  { key: "/basic/category", label: "分类", icon: <IconList /> },
+  { key: "/basic/unit", label: "单位", icon: <IconStorage /> },
+  { key: "/basic/commodity", label: "商品", icon: <IconTags /> },
+  { key: "/basic/purchase-place", label: "进货地", icon: <IconLocation /> },
+  { key: "/order/list", label: "订单", icon: <IconCalendar /> },
+];
 
-/**
- * 侧栏导航与登出；登出后清除会话并跳转登录页。
- */
-export function DashboardNav({ username }: Props) {
+function activeKey(pathname: string): string {
+  const hit = navItems.find((item) => pathname === item.key || pathname.startsWith(`${item.key}/`));
+  return hit?.key ?? "/basic/category";
+}
+
+export function DashboardNav() {
   const router = useRouter();
-
-  async function handleLogout() {
-    await fetch("/api/auth/logout", {
-      method: "POST",
-      credentials: "include",
-    });
-    router.replace("/login");
-    router.refresh();
-  }
-
-  const linkCls =
-    "block rounded px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-100";
+  const pathname = usePathname();
 
   return (
-    <aside className="flex w-52 flex-col border-r border-zinc-200 bg-white">
-      <div className="border-b border-zinc-100 p-4">
-        <p className="text-xs text-zinc-500">已登录</p>
-        <p className="font-medium text-zinc-900">{username}</p>
-      </div>
-      <nav className="flex flex-1 flex-col gap-1 p-2">
-        <Link href="/basic/category" className={linkCls}>
-          分类
-        </Link>
-        <Link href="/basic/unit" className={linkCls}>
-          单位
-        </Link>
-        <Link href="/basic/commodity" className={linkCls}>
-          商品
-        </Link>
-        <Link href="/basic/purchase-place" className={linkCls}>
-          进货地
-        </Link>
-        <Link href="/order/list" className={linkCls}>
-          订单
-        </Link>
-      </nav>
-      <div className="border-t border-zinc-100 p-2">
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="w-full rounded px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
-        >
-          退出登录
-        </button>
-      </div>
+    <aside className="w-56 border-r border-[#e5e6eb] bg-white">
+      <Menu
+        style={{ width: "100%", paddingTop: 8 }}
+        selectedKeys={[activeKey(pathname)]}
+        onClickMenuItem={(key) => router.push(key)}
+      >
+        {navItems.map((item) => (
+          <Menu.Item key={item.key}>
+            <span className="mr-2 inline-flex items-center">{item.icon}</span>
+            {item.label}
+          </Menu.Item>
+        ))}
+      </Menu>
     </aside>
   );
 }

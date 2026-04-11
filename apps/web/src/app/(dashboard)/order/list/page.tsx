@@ -1,5 +1,15 @@
 "use client";
 
+import {
+  Button,
+  Card,
+  Input,
+  Modal,
+  Select,
+  Table,
+  Typography,
+  type TableColumnProps,
+} from "@arco-design/web-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
@@ -16,9 +26,6 @@ type PurchasePlace = {
   marketName: string;
 };
 
-/**
- * 订单列表：创建订单并跳转详情。
- */
 export default function OrderListPage() {
   const [items, setItems] = useState<Order[]>([]);
   const [purchasePlaces, setPurchasePlaces] = useState<PurchasePlace[]>([]);
@@ -26,6 +33,7 @@ export default function OrderListPage() {
   const [name, setName] = useState("");
   const [purchasePlaceId, setPurchasePlaceId] = useState("");
   const [desc, setDesc] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadList = useCallback(async () => {
@@ -80,107 +88,67 @@ export default function OrderListPage() {
     setName("");
     setPurchasePlaceId("");
     setDesc("");
+    setCreateOpen(false);
     await loadList();
   }
 
+  function openCreate() {
+    setError(null);
+    setName("");
+    setPurchasePlaceId("");
+    setDesc("");
+    setCreateOpen(true);
+  }
+
+  const columns: TableColumnProps<Order>[] = [
+    { title: "名称", dataIndex: "name" },
+    { title: "进货地", render: (_, row) => `${row.purchasePlace.place} / ${row.purchasePlace.marketName}` },
+    { title: "备注", render: (_, row) => row.desc ?? "—" },
+    {
+      title: "操作",
+      render: (_, row) => (
+        <Link href={`/order/list/${row.id}`} className="text-[#165dff] hover:underline">
+          查看详情
+        </Link>
+      ),
+    },
+  ];
+
   return (
-    <div>
-      <h1 className="mb-6 text-2xl font-semibold text-zinc-900">订单</h1>
+    <Card
+      title={<Typography.Title heading={6}>订单</Typography.Title>}
+      extra={<Button type="primary" onClick={openCreate}>创建</Button>}
+      
+    >
+      {error ? <Typography.Text type="danger">{error}</Typography.Text> : null}
+      <Table
+        style={{ marginTop: error ? 12 : 0 }}
+        rowKey="id"
+        loading={loading}
+        columns={columns}
+        data={items}
+        pagination={{ pageSize: 10, showTotal: true }}
+        noDataElement="暂无订单"
+      />
 
-      <form
-        onSubmit={handleCreate}
-        className="mb-8 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm"
-      >
-        <h2 className="mb-3 text-sm font-medium text-zinc-700">新建订单</h2>
-        <div className="flex flex-wrap gap-3">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="订单名称"
-            className="rounded border border-zinc-300 px-3 py-2 text-sm"
-            required
-          />
-          <select
-            value={purchasePlaceId}
-            onChange={(e) => setPurchasePlaceId(e.target.value)}
-            className="rounded border border-zinc-300 px-3 py-2 text-sm"
-            required
-          >
-            <option value="" disabled>
-              {purchasePlaces.length === 0 ? "暂无进货地" : "选择进货地"}
-            </option>
+      <Modal title="新建订单" visible={createOpen} onCancel={() => setCreateOpen(false)} footer={null}>
+        <form onSubmit={handleCreate} className="flex flex-col gap-3">
+          <label className="text-sm text-[#4e5969]">订单名称</label>
+          <Input value={name} onChange={setName} placeholder="订单名称" required />
+          <label className="text-sm text-[#4e5969]">进货地</label>
+          <Select placeholder="选择进货地" value={purchasePlaceId || undefined} onChange={(v) => setPurchasePlaceId(String(v))}>
             {purchasePlaces.map((row) => (
-              <option key={row.id} value={row.id}>
-                {row.place} / {row.marketName}
-              </option>
+              <Select.Option key={row.id} value={row.id}>{row.place} / {row.marketName}</Select.Option>
             ))}
-          </select>
-          <input
-            value={desc}
-            onChange={(e) => setDesc(e.target.value)}
-            placeholder="备注（可选）"
-            className="min-w-[200px] flex-1 rounded border border-zinc-300 px-3 py-2 text-sm"
-          />
-          <button
-            type="submit"
-            className="rounded bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-800"
-          >
-            创建
-          </button>
-        </div>
-      </form>
-
-      {error ? (
-        <p className="mb-4 text-sm text-red-600" role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-zinc-200 bg-zinc-50">
-            <tr>
-              <th className="px-4 py-3 font-medium text-zinc-700">名称</th>
-              <th className="px-4 py-3 font-medium text-zinc-700">进货地</th>
-              <th className="px-4 py-3 font-medium text-zinc-700">备注</th>
-              <th className="px-4 py-3 font-medium text-zinc-700">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-zinc-500">
-                  加载中…
-                </td>
-              </tr>
-            ) : items.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-zinc-500">
-                  暂无订单
-                </td>
-              </tr>
-            ) : (
-              items.map((row) => (
-                <tr key={row.id} className="border-b border-zinc-100">
-                  <td className="px-4 py-3 text-zinc-900">{row.name}</td>
-                  <td className="px-4 py-3 text-zinc-600">
-                    {row.purchasePlace.place} / {row.purchasePlace.marketName}
-                  </td>
-                  <td className="px-4 py-3 text-zinc-600">{row.desc ?? "—"}</td>
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/order/list/${row.id}`}
-                      className="text-blue-600 hover:underline"
-                    >
-                      查看详情
-                    </Link>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+          </Select>
+          <label className="text-sm text-[#4e5969]">备注（可选）</label>
+          <Input value={desc} onChange={setDesc} placeholder="备注（可选）" />
+          <div className="flex justify-end gap-2">
+            <Button onClick={() => setCreateOpen(false)}>取消</Button>
+            <Button htmlType="submit" type="primary">创建</Button>
+          </div>
+        </form>
+      </Modal>
+    </Card>
   );
 }

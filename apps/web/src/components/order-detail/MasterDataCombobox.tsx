@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Select } from "@arco-design/web-react";
+import { useEffect, useMemo, useState } from "react";
 
-/** 选中已有主数据 id，或使用自定义名称（trim 后提交）。 */
 export type MasterDataSelection =
   | { kind: "id"; id: string; label: string }
   | { kind: "free"; text: string }
@@ -16,21 +16,15 @@ export type MasterDataListItem = {
 };
 
 type Props = {
-  /** 表单项标签 */
   label: string;
-  /** 如 `/api/categories` */
   apiPath: string;
   disabled?: boolean;
   value: MasterDataSelection;
   onChange: (v: MasterDataSelection) => void;
-  /** 仅商品下拉：选中列表项时带出分类与单位 */
   onPickCommodity?: (row: MasterDataListItem) => void;
   placeholder?: string;
 };
 
-/**
- * 可搜索主数据下拉：防抖请求 `?q=`，无完全匹配时在首项提供「使用当前输入」。
- */
 export function MasterDataCombobox({
   label,
   apiPath,
@@ -41,33 +35,18 @@ export function MasterDataCombobox({
   placeholder = "输入关键字搜索或选择",
 }: Props) {
   const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<MasterDataListItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-
-  const displayText =
-    value?.kind === "id"
-      ? value.label
-      : value?.kind === "free"
-        ? value.text
-        : "";
+  const [items, setItems] = useState<MasterDataListItem[]>([]);
 
   useEffect(() => {
-    if (!open) return;
     const t = setTimeout(() => {
       void (async () => {
         setLoading(true);
         try {
           const q = query.trim();
-          const url =
-            q.length > 0
-              ? `${apiPath}?q=${encodeURIComponent(q)}`
-              : apiPath;
+          const url = q.length > 0 ? `${apiPath}?q=${encodeURIComponent(q)}` : apiPath;
           const res = await fetch(url, { credentials: "include" });
-          const data = (await res.json()) as {
-            items?: MasterDataListItem[];
-          };
+          const data = (await res.json()) as { items?: MasterDataListItem[] };
           setItems(Array.isArray(data.items) ? data.items : []);
         } finally {
           setLoading(false);
@@ -75,88 +54,57 @@ export function MasterDataCombobox({
       })();
     }, 280);
     return () => clearTimeout(t);
-  }, [apiPath, open, query]);
+  }, [apiPath, query]);
 
-  useEffect(() => {
-    function onDocClick(e: MouseEvent) {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+  const selectedValue =
+    value?.kind === "id" ? `id:${value.id}` : value?.kind === "free" ? `free:${value.text}` : undefined;
+
+  const options = useMemo(() => {
+    const opts = items.map((row) => ({ value: `id:${row.id}`, label: row.name, row }));
+    const q = query.trim();
+    if (q.length > 0 && !items.some((i) => i.name === q)) {
+      opts.unshift({ value: `free:${q}`, label: `使用「${q}」`, row: null });
     }
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
-  }, []);
-
-  const trimmedQuery = query.trim();
-  const showFreeOption =
-    trimmedQuery.length > 0 &&
-    !items.some((i) => i.name === trimmedQuery);
-
-  const pickItem = useCallback(
-    (row: MasterDataListItem) => {
-      onChange({ kind: "id", id: row.id, label: row.name });
-      setQuery(row.name);
-      setOpen(false);
-      onPickCommodity?.(row);
-    },
-    [onChange, onPickCommodity],
-  );
-
-  const pickFree = useCallback(() => {
-    onChange({ kind: "free", text: trimmedQuery });
-    setQuery(trimmedQuery);
-    setOpen(false);
-  }, [onChange, trimmedQuery]);
+    return opts;
+  }, [items, query]);
 
   return (
-    <div ref={wrapRef} className="relative min-w-[200px] flex-1">
-      <label className="mb-1 block text-xs text-zinc-500">{label}</label>
-      <input
-        type="text"
+    <div className="flex flex-col gap-1">
+      <label className="text-sm text-[#4e5969]">{label}</label>
+      <Select
+        showSearch
+        allowClear
         disabled={disabled}
-        value={open ? query : displayText}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          if (!open) setOpen(true);
-        }}
-        onFocus={() => {
-          setQuery(displayText);
-          setOpen(true);
-        }}
+        loading={loading}
         placeholder={placeholder}
-        className="w-full rounded border border-zinc-300 px-3 py-2 text-sm disabled:bg-zinc-100"
-        autoComplete="off"
-      />
-      {open && !disabled ? (
-        <ul className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded border border-zinc-200 bg-white py-1 text-sm shadow-md">
-          {loading ? (
-            <li className="px-3 py-2 text-zinc-400">加载中…</li>
-          ) : null}
-          {showFreeOption ? (
-            <li>
-              <button
-                type="button"
-                className="w-full px-3 py-2 text-left text-blue-700 hover:bg-blue-50"
-                onClick={() => pickFree()}
-              >
-                使用「{trimmedQuery}」
-              </button>
-            </li>
-          ) : null}
-          {items.map((row) => (
-            <li key={row.id}>
-              <button
-                type="button"
-                className="w-full px-3 py-2 text-left hover:bg-zinc-50"
-                onClick={() => pickItem(row)}
-              >
-                {row.name}
-              </button>
-            </li>
-          ))}
-          {!loading && items.length === 0 && !showFreeOption ? (
-            <li className="px-3 py-2 text-zinc-400">无匹配项，可输入后选首项</li>
-          ) : null}
-        </ul>
-      ) : null}
+        value={selectedValue}
+        onSearch={setQuery}
+        onChange={(v) => {
+          const s = String(v ?? "");
+          if (!s) {
+            onChange(null);
+            return;
+          }
+          if (s.startsWith("id:")) {
+            const id = s.slice(3);
+            const row = items.find((it) => it.id === id);
+            if (row) {
+              onChange({ kind: "id", id: row.id, label: row.name });
+              onPickCommodity?.(row);
+            }
+            return;
+          }
+          if (s.startsWith("free:")) {
+            onChange({ kind: "free", text: s.slice(5) });
+          }
+        }}
+      >
+        {options.map((opt) => (
+          <Select.Option key={opt.value} value={opt.value}>
+            {opt.label}
+          </Select.Option>
+        ))}
+      </Select>
     </div>
   );
 }

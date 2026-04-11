@@ -1,6 +1,14 @@
 "use client";
 
 import {
+  Button,
+  Card,
+  Input,
+  Modal,
+  Space,
+  Typography,
+} from "@arco-design/web-react";
+import {
   MasterDataCombobox,
   type MasterDataListItem,
   type MasterDataSelection,
@@ -34,9 +42,6 @@ function defaultLineTotalNum(count: number, price: number): number {
   return Math.round(price * count);
 }
 
-/**
- * 订单详情：头信息、明细表（合并/标红）、明细 CRUD、导出 Excel。
- */
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -57,34 +62,29 @@ export default function OrderDetailPage() {
   const [lineTotalTouched, setLineTotalTouched] = useState(false);
   const [lineDesc, setLineDesc] = useState("");
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
+  const [lineModalOpen, setLineModalOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   const loadOrder = useCallback(async () => {
-    const res = await fetch(`/api/orders/${orderId}`, {
-      credentials: "include",
-    });
+    const res = await fetch(`/api/orders/${orderId}`, { credentials: "include" });
     const data = await res.json();
     if (!res.ok) {
       setError((data as { error?: string }).error ?? "订单不存在");
       setOrder(null);
       return;
     }
-    const item = (data as { item: OrderHead }).item;
-    setOrder(item);
+    setOrder((data as { item: OrderHead }).item);
     setError(null);
   }, [orderId]);
 
   const loadLines = useCallback(async () => {
-    const res = await fetch(`/api/orders/${orderId}/lines`, {
-      credentials: "include",
-    });
+    const res = await fetch(`/api/orders/${orderId}/lines`, { credentials: "include" });
     const data = await res.json();
     if (!res.ok) {
       setLines([]);
       return;
     }
-    const raw = (data as { items: OrderDetailTableRow[] }).items ?? [];
-    setLines(raw);
+    setLines((data as { items: OrderDetailTableRow[] }).items ?? []);
   }, [orderId]);
 
   const refresh = useCallback(async () => {
@@ -146,7 +146,6 @@ export default function OrderDetailPage() {
     return null;
   }
 
-  /** 提交新增或更新明细 */
   async function handleLineSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -178,12 +177,7 @@ export default function OrderDetailPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          count,
-          price,
-          lineTotal: lineTotalVal,
-          desc: lineDesc || undefined,
-        }),
+        body: JSON.stringify({ count, price, lineTotal: lineTotalVal, desc: lineDesc || undefined }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -197,26 +191,15 @@ export default function OrderDetailPage() {
         return;
       }
 
-      const body: Record<string, unknown> = {
-        orderId,
-        count,
-        price,
-        lineTotal: lineTotalVal,
-        desc: lineDesc || undefined,
-      };
-
+      const body: Record<string, unknown> = { orderId, count, price, lineTotal: lineTotalVal, desc: lineDesc || undefined };
       if (commoditySel?.kind === "id") {
         body.commodityId = commoditySel.id;
       } else if (commoditySel?.kind === "free") {
         body.commodityName = trimOrEmpty(commoditySel.text);
         if (categorySel?.kind === "id") body.categoryId = categorySel.id;
-        else if (categorySel?.kind === "free") {
-          body.categoryName = trimOrEmpty(categorySel.text);
-        }
+        else if (categorySel?.kind === "free") body.categoryName = trimOrEmpty(categorySel.text);
         if (unitSel?.kind === "id") body.unitId = unitSel.id;
-        else if (unitSel?.kind === "free") {
-          body.unitName = trimOrEmpty(unitSel.text);
-        }
+        else if (unitSel?.kind === "free") body.unitName = trimOrEmpty(unitSel.text);
       }
 
       const res = await fetch("/api/order-lines", {
@@ -232,50 +215,39 @@ export default function OrderDetailPage() {
       }
     }
     resetLineForm();
+    setLineModalOpen(false);
     await loadLines();
   }
 
-  /** 进入编辑 */
+  function startCreateLine() {
+    resetLineForm();
+    setError(null);
+    setLineModalOpen(true);
+  }
+
   function startEditLine(row: OrderDetailTableRow) {
     setEditingLineId(row.id);
-    setCommoditySel({
-      kind: "id",
-      id: row.commodityId,
-      label: row.commodity.name,
-    });
-    setCategorySel({
-      kind: "id",
-      id: row.category.id,
-      label: row.category.name,
-    });
+    setCommoditySel({ kind: "id", id: row.commodityId, label: row.commodity.name });
+    setCategorySel({ kind: "id", id: row.category.id, label: row.category.name });
     setUnitSel({ kind: "id", id: row.unit.id, label: row.unit.name });
     setLineCount(String(row.count));
     setLinePrice(String(row.price));
     setLineTotalInput(String(row.line_total));
     setLineTotalTouched(true);
     setLineDesc(row.desc ?? "");
+    setError(null);
+    setLineModalOpen(true);
   }
 
   function onPickCommodity(row: MasterDataListItem) {
-    if (row.category) {
-      setCategorySel({
-        kind: "id",
-        id: row.category.id,
-        label: row.category.name,
-      });
-    }
-    if (row.unit) {
-      setUnitSel({ kind: "id", id: row.unit.id, label: row.unit.name });
-    }
+    if (row.category) setCategorySel({ kind: "id", id: row.category.id, label: row.category.name });
+    if (row.unit) setUnitSel({ kind: "id", id: row.unit.id, label: row.unit.name });
   }
 
   async function removeLine(id: string) {
     if (!confirm("确定删除该明细？")) return;
     setError(null);
-    const res = await fetch(`/api/order-lines/${id}`, {
-      method: "DELETE",
-      credentials: "include",
-    });
+    const res = await fetch(`/api/order-lines/${id}`, { method: "DELETE", credentials: "include" });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       setError((data as { error?: string }).error ?? "删除失败");
@@ -287,10 +259,7 @@ export default function OrderDetailPage() {
 
   async function handleDeleteOrder() {
     if (!confirm("确定删除整个订单及其明细？")) return;
-    const res = await fetch(`/api/orders/${orderId}`, {
-      method: "DELETE",
-      credentials: "include",
-    });
+    const res = await fetch(`/api/orders/${orderId}`, { method: "DELETE", credentials: "include" });
     if (!res.ok) {
       setError("删除订单失败");
       return;
@@ -304,12 +273,7 @@ export default function OrderDetailPage() {
     setExporting(true);
     setError(null);
     try {
-      await downloadOrderDetailExcel({
-        orderId: order.id,
-        orderName: order.name,
-        orderDesc: order.desc,
-        lines,
-      });
+      await downloadOrderDetailExcel({ orderId: order.id, orderName: order.name, orderDesc: order.desc, lines });
     } catch {
       setError("导出 Excel 失败");
     } finally {
@@ -317,178 +281,61 @@ export default function OrderDetailPage() {
     }
   }
 
-  if (loading && !order) {
-    return <div className="text-zinc-500">加载订单…</div>;
-  }
+  if (loading && !order) return <Typography.Text>加载订单…</Typography.Text>;
 
   if (!order) {
     return (
-      <div>
-        <p className="text-red-600">{error ?? "订单不存在"}</p>
-        <Link href="/order/list" className="mt-4 inline-block text-blue-600">
-          返回列表
-        </Link>
-      </div>
+      <Card >
+        <Typography.Text type="danger">{error ?? "订单不存在"}</Typography.Text>
+        <div className="mt-3">
+          <Link href="/order/list" className="text-[#165dff] hover:underline">返回列表</Link>
+        </div>
+      </Card>
     );
   }
 
   return (
-    <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <Link
-            href="/order/list"
-            className="text-sm text-blue-600 hover:underline"
-          >
-            ← 返回订单列表
-          </Link>
-          <h1 className="mt-2 text-2xl font-semibold text-zinc-900">
-            订单：{order.name}
-          </h1>
-          <p className="mt-1 text-sm text-zinc-600">
-            进货地：{order.purchasePlace.place} / {order.purchasePlace.marketName}
-          </p>
-          {order.desc ? (
-            <p className="mt-1 text-sm text-zinc-600">备注：{order.desc}</p>
+    <div className="space-y-3">
+      <Card >
+        <Space direction="vertical" size={8} style={{ width: "100%" }}>
+          <Link href="/order/list" className="text-[#165dff] hover:underline">← 返回订单列表</Link>
+          <Typography.Title heading={6}>订单：{order.name}</Typography.Title>
+          <Typography.Text>进货地：{order.purchasePlace.place} / {order.purchasePlace.marketName}</Typography.Text>
+          {order.desc ? <Typography.Text>备注：{order.desc}</Typography.Text> : null}
+          <Space>
+            <Button type="primary" onClick={startCreateLine}>新增明细</Button>
+            <Button onClick={() => void handleExportExcel()} loading={exporting} disabled={lines.length === 0}>导出 Excel</Button>
+            <Button status="danger" onClick={() => void handleDeleteOrder()}>删除订单</Button>
+          </Space>
+          {error ? <Typography.Text type="danger">{error}</Typography.Text> : null}
+        </Space>
+      </Card>
+
+      <OrderDetailTable lines={lines} onEdit={startEditLine} onDelete={(id) => void removeLine(id)} />
+
+      <Modal title={editingLineId ? "编辑明细" : "新增明细"} visible={lineModalOpen} onCancel={() => setLineModalOpen(false)} footer={null}>
+        <form onSubmit={handleLineSubmit} className="flex flex-col gap-3">
+          <MasterDataCombobox label="分类" apiPath="/api/categories" disabled={!!editingLineId} value={categorySel} onChange={setCategorySel} />
+          <MasterDataCombobox label="单位" apiPath="/api/units" disabled={!!editingLineId} value={unitSel} onChange={setUnitSel} />
+          <MasterDataCombobox label="商品" apiPath="/api/commodities" disabled={!!editingLineId} value={commoditySel} onChange={setCommoditySel} onPickCommodity={onPickCommodity} />
+
+          <label className="text-sm text-[#4e5969]">数量</label>
+          <Input type="number" value={lineCount} onChange={setLineCount} required />
+          <label className="text-sm text-[#4e5969]">单价</label>
+          <Input type="number" value={linePrice} onChange={setLinePrice} required />
+          <label className="text-sm text-[#4e5969]">行金额（可改）</label>
+          <Input type="number" value={lineTotalInput} onChange={(v) => { setLineTotalTouched(true); setLineTotalInput(v); }} />
+          {!editingLineId && lineTotalInput !== "" && !Number.isNaN(lineTotalValNum(lineTotalInput)) && !Number.isNaN(countNum) && !Number.isNaN(priceNum) && lineTotalValNum(lineTotalInput) !== autoTotal ? (
+            <Typography.Text style={{ color: "#ffb65c" }}>与计算值 {autoTotal} 不一致，保存后金额列将标红</Typography.Text>
           ) : null}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => void handleExportExcel()}
-            disabled={exporting || lines.length === 0}
-            className="rounded border border-zinc-300 bg-white px-4 py-2 text-sm hover:bg-zinc-50 disabled:opacity-50"
-          >
-            {exporting ? "导出中…" : "导出 Excel"}
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleDeleteOrder()}
-            className="rounded border border-red-200 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-          >
-            删除订单
-          </button>
-        </div>
-      </div>
-
-      {error ? (
-        <p className="mb-4 text-sm text-red-600" role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      <section className="mb-8 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
-        <h2 className="mb-3 text-sm font-medium text-zinc-700">
-          {editingLineId ? "编辑明细" : "新增明细"}
-        </h2>
-        <form
-          onSubmit={handleLineSubmit}
-          className="flex flex-col gap-4"
-        >
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <MasterDataCombobox
-              label="分类"
-              apiPath="/api/categories"
-              disabled={!!editingLineId}
-              value={categorySel}
-              onChange={setCategorySel}
-            />
-            <MasterDataCombobox
-              label="单位"
-              apiPath="/api/units"
-              disabled={!!editingLineId}
-              value={unitSel}
-              onChange={setUnitSel}
-            />
-            <MasterDataCombobox
-              label="商品"
-              apiPath="/api/commodities"
-              disabled={!!editingLineId}
-              value={commoditySel}
-              onChange={setCommoditySel}
-              onPickCommodity={onPickCommodity}
-            />
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-            <div>
-              <label className="mb-1 block text-xs text-zinc-500">数量</label>
-              <input
-                type="number"
-                min={1}
-                value={lineCount}
-                onChange={(e) => setLineCount(e.target.value)}
-                placeholder="数量"
-                className="w-28 rounded border border-zinc-300 px-3 py-2 text-sm"
-                required
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-zinc-500">单价</label>
-              <input
-                type="number"
-                step="0.01"
-                value={linePrice}
-                onChange={(e) => setLinePrice(e.target.value)}
-                placeholder="单价"
-                className="w-32 rounded border border-zinc-300 px-3 py-2 text-sm"
-                required
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-zinc-500">
-                行金额（默认单价×数量四舍五入，可改）
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={lineTotalInput}
-                onChange={(e) => {
-                  setLineTotalTouched(true);
-                  setLineTotalInput(e.target.value);
-                }}
-                className="w-36 rounded border border-zinc-300 px-3 py-2 text-sm"
-              />
-              {!editingLineId &&
-              lineTotalInput !== "" &&
-              !Number.isNaN(lineTotalValNum(lineTotalInput)) &&
-              !Number.isNaN(countNum) &&
-              !Number.isNaN(priceNum) &&
-              lineTotalValNum(lineTotalInput) !== autoTotal ? (
-                <p className="mt-1 text-xs text-amber-600">
-                  与计算值 {autoTotal} 不一致，保存后金额列将标红
-                </p>
-              ) : null}
-            </div>
-            <input
-              value={lineDesc}
-              onChange={(e) => setLineDesc(e.target.value)}
-              placeholder="备注（可选）"
-              className="min-w-[160px] flex-1 rounded border border-zinc-300 px-3 py-2 text-sm"
-            />
-            <button
-              type="submit"
-              className="rounded bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-800"
-            >
-              {editingLineId ? "保存明细" : "添加明细"}
-            </button>
-            {editingLineId ? (
-              <button
-                type="button"
-                onClick={resetLineForm}
-                className="rounded border border-zinc-300 px-4 py-2 text-sm"
-              >
-                取消
-              </button>
-            ) : null}
+          <label className="text-sm text-[#4e5969]">备注（可选）</label>
+          <Input value={lineDesc} onChange={setLineDesc} />
+          <div className="flex justify-end gap-2">
+            <Button onClick={() => setLineModalOpen(false)}>取消</Button>
+            <Button htmlType="submit" type="primary">{editingLineId ? "保存明细" : "添加明细"}</Button>
           </div>
         </form>
-      </section>
-
-      <OrderDetailTable
-        lines={lines}
-        onEdit={startEditLine}
-        onDelete={(id) => void removeLine(id)}
-      />
+      </Modal>
     </div>
   );
 }
