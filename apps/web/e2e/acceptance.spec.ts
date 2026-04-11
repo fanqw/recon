@@ -390,6 +390,19 @@ test("工作台导航支持新层级、侧栏折叠与主题持久化", async ({
     .toBe("light");
 });
 
+test("侧栏无对账系统标题且面包屑无重复工作台前缀", async ({ page }) => {
+  await loginByApi(page);
+
+  await page.goto("/basic/category");
+
+  const sidebar = page.getByTestId("dashboard-sidebar");
+  await expect(sidebar).not.toContainText("对账系统");
+
+  const breadcrumb = page.getByLabel("页面位置");
+  await expect(breadcrumb).toContainText("工作台");
+  await expect(breadcrumb).not.toContainText("工作台 / 工作台");
+});
+
 test("导航子菜单点击与多路径面包屑保持一致", async ({ page }) => {
   await loginByApi(page);
 

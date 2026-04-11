@@ -41,6 +41,7 @@ export const workspaceNavEntries: WorkspaceNavEntry[] = [
 ];
 
 export const workspaceHome: WorkspaceNavItem = workspaceNavEntries[0] as WorkspaceNavItem;
+const workspaceRootBreadcrumb: WorkspaceBreadcrumbItem = { label: workspaceHome.label };
 
 function isGroup(entry: WorkspaceNavEntry): entry is WorkspaceNavGroup {
   return "children" in entry;
@@ -68,7 +69,7 @@ export function defaultOpenKeysForPath(pathname: string): string[] {
 
 export function getWorkspaceBreadcrumbs(pathname: string): WorkspaceBreadcrumbItem[] {
   if (pathname === workspaceHome.href || pathname.startsWith(`${workspaceHome.href}/`)) {
-    return [{ label: workspaceHome.label }];
+    return [workspaceRootBreadcrumb];
   }
 
   for (const entry of workspaceNavEntries) {
@@ -82,7 +83,7 @@ export function getWorkspaceBreadcrumbs(pathname: string): WorkspaceBreadcrumbIt
     }
 
     const breadcrumbs: WorkspaceBreadcrumbItem[] = [
-      { label: workspaceHome.label, href: workspaceHome.href },
+      { ...workspaceRootBreadcrumb, href: workspaceHome.href },
       { label: entry.label },
       { label: activeChild.label, href: activeChild.href },
     ];
@@ -95,4 +96,14 @@ export function getWorkspaceBreadcrumbs(pathname: string): WorkspaceBreadcrumbIt
   }
 
   return [{ label: workspaceHome.label, href: workspaceHome.href }];
+}
+
+export function normalizeWorkspaceBreadcrumbs(
+  items: WorkspaceBreadcrumbItem[],
+): WorkspaceBreadcrumbItem[] {
+  if (items.length >= 2 && items[0].label === workspaceHome.label && items[1].label === workspaceHome.label) {
+    return items.slice(1);
+  }
+
+  return items;
 }

@@ -10,7 +10,7 @@ import {
   IconStorage,
   IconTags,
 } from "@arco-design/web-react/icon";
-import { Button, Menu, Tooltip, Typography } from "@arco-design/web-react";
+import { Button, Menu, Tooltip } from "@arco-design/web-react";
 import {
   defaultOpenKeysForPath,
   findActiveWorkspaceNavItem,
@@ -69,12 +69,7 @@ export function DashboardNav() {
       data-collapsed={String(collapsed)}
       data-testid="dashboard-sidebar"
     >
-      <div className="flex h-14 items-center justify-between gap-2 border-b px-3">
-        {!collapsed && (
-          <Typography.Text className="truncate" style={{ fontWeight: 600 }}>
-            对账系统
-          </Typography.Text>
-        )}
+      <div className="flex h-14 items-center justify-end px-3">
         <Tooltip content={collapsed ? "展开侧栏" : "收起侧栏"} position="right">
           <Button
             aria-label={collapsed ? "展开侧栏" : "收起侧栏"}

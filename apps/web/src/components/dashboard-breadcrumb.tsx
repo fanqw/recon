@@ -1,13 +1,13 @@
 "use client";
 
 import { Breadcrumb } from "@arco-design/web-react";
-import { getWorkspaceBreadcrumbs } from "@/lib/workspace-nav";
+import { getWorkspaceBreadcrumbs, normalizeWorkspaceBreadcrumbs } from "@/lib/workspace-nav";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 export function DashboardBreadcrumb() {
   const pathname = usePathname();
-  const items = getWorkspaceBreadcrumbs(pathname);
+  const items = normalizeWorkspaceBreadcrumbs(getWorkspaceBreadcrumbs(pathname));
 
   return (
     <nav aria-label="页面位置" className="dashboard-breadcrumb rounded-lg border px-3 py-2">
