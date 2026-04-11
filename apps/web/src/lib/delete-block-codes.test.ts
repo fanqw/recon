@@ -18,7 +18,7 @@ describe("delete-block-codes", () => {
     for (const code of DELETE_BLOCK_CODES) {
       const msg = messageForDeleteBlockCode(code);
       expect(msg.length).toBeGreaterThan(0);
-      expect(msg).toContain("无法删除");
+      expect(msg).toContain("已被关联，无法删除");
     }
   });
 });

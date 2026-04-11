@@ -8,10 +8,10 @@ export const DELETE_BLOCK_CODES = [
 export type DeleteBlockCode = (typeof DELETE_BLOCK_CODES)[number];
 
 const DELETE_BLOCK_MESSAGE_MAP: Record<DeleteBlockCode, string> = {
-  CATEGORY_IN_USE: "该分类无法删除：已被关联",
-  UNIT_IN_USE: "该单位无法删除：已被关联",
-  COMMODITY_IN_USE: "该商品无法删除：已被关联",
-  PURCHASE_PLACE_IN_USE: "该进货地无法删除：已被关联",
+  CATEGORY_IN_USE: "该分类已被关联，无法删除",
+  UNIT_IN_USE: "该单位已被关联，无法删除",
+  COMMODITY_IN_USE: "该商品已被关联，无法删除",
+  PURCHASE_PLACE_IN_USE: "该进货地已被关联，无法删除",
 };
 
 export function isDeleteBlockCode(v: unknown): v is DeleteBlockCode {

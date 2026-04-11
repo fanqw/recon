@@ -63,6 +63,7 @@
 - 进货地在未删除记录范围内满足组合唯一：`进货地(place) + 市场名称(market_name)`。
 - 已关联记录不可删除：分类/单位/商品/进货地在被有效业务数据引用时，删除接口返回 `409`。
 - 删除拦截使用统一错误码：`CATEGORY_IN_USE`、`UNIT_IN_USE`、`COMMODITY_IN_USE`、`PURCHASE_PLACE_IN_USE`。
+- 接口响应语言统一为中文：业务接口返回体中的 `error`、`message` 等可读提示字段必须使用中文文案。
 
 ## Validation
 
