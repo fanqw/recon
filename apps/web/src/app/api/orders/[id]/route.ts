@@ -48,7 +48,7 @@ export async function GET(
 }
 
 /**
- * PATCH /api/orders/[id]：更新订单名称与描述。
+ * PATCH /api/orders/[id]：更新订单名称、进货地与描述。
  */
 export async function PATCH(
   req: Request,

@@ -79,6 +79,24 @@ describe("主数据与订单 API 最小成功路径", () => {
     expect(res.status).toBe(400);
   });
 
+  it("POST /api/orders 使用无效 purchasePlaceId 返回 400", async () => {
+    const baseUrl = inject("testBaseUrl");
+    const cookie = await loginAsAdmin(baseUrl);
+    const suf = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+    const res = await postJsonWithCookie(
+      baseUrl,
+      "/api/orders",
+      {
+        name: `api-ord-invalid-purchasePlaceId-${suf}`,
+        purchasePlaceId: "clnonexistent000000000000000",
+      },
+      cookie,
+    );
+
+    expect(res.status).toBe(400);
+  });
+
   it("串联：创建分类/单位/商品、订单与明细，GET lines 含聚合字段", async () => {
     const baseUrl = inject("testBaseUrl");
     const cookie = await loginAsAdmin(baseUrl);
