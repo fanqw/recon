@@ -18,6 +18,11 @@ type OrderHead = {
   id: string;
   name: string;
   desc: string | null;
+  purchasePlace: {
+    id: string;
+    place: string;
+    marketName: string;
+  };
 };
 
 function trimOrEmpty(s: string): string {
@@ -340,6 +345,9 @@ export default function OrderDetailPage() {
           <h1 className="mt-2 text-2xl font-semibold text-zinc-900">
             订单：{order.name}
           </h1>
+          <p className="mt-1 text-sm text-zinc-600">
+            进货地：{order.purchasePlace.place} / {order.purchasePlace.marketName}
+          </p>
           {order.desc ? (
             <p className="mt-1 text-sm text-zinc-600">备注：{order.desc}</p>
           ) : null}

@@ -42,6 +42,9 @@ export function DashboardNav({ username }: Props) {
         <Link href="/basic/commodity" className={linkCls}>
           商品
         </Link>
+        <Link href="/basic/purchase-place" className={linkCls}>
+          进货地
+        </Link>
         <Link href="/order/list" className={linkCls}>
           订单
         </Link>

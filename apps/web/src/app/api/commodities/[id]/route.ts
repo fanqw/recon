@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { jsonResponseForPrismaUniqueViolation } from "@/lib/prisma-errors";
+import { messageForDeleteBlockCode } from "@/lib/delete-block-codes";
 
 const patchSchema = z.object({
   name: z.string().min(1).optional(),
@@ -115,6 +116,19 @@ export async function DELETE(
     where: { id, deleted: false },
   });
   if (!existing) return NextResponse.json({ error: "未找到" }, { status: 404 });
+
+  const inUse = await prisma.orderCommodity.findFirst({
+    where: { commodityId: id, deleted: false },
+  });
+  if (inUse) {
+    return NextResponse.json(
+      {
+        code: "COMMODITY_IN_USE",
+        error: messageForDeleteBlockCode("COMMODITY_IN_USE"),
+      },
+      { status: 409 }
+    );
+  }
   await prisma.commodity.update({ where: { id }, data: { deleted: true } });
   return NextResponse.json({ ok: true });
 }
