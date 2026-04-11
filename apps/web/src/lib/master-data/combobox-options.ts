@@ -28,7 +28,7 @@ function hasExactMatch(items: MasterDataListItem[], query: string): boolean {
 export function buildMasterDataComboboxOptions({
   items,
   query,
-  currentInputLabel = (value) => `使用「${value}」`,
+  currentInputLabel = (value) => value,
 }: BuildMasterDataComboboxOptionsInput): MasterDataComboboxOption[] {
   const normalizedQuery = normalizeQuery(query);
   const options = items.map((row) => ({

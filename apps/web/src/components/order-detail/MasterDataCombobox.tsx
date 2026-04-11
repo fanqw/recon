@@ -59,7 +59,11 @@ export function MasterDataCombobox({
     value?.kind === "id" ? `id:${value.id}` : value?.kind === "free" ? `free:${value.text}` : undefined;
 
   const options = useMemo(() => {
-    return buildMasterDataComboboxOptions({ items, query });
+    return buildMasterDataComboboxOptions({
+      items,
+      query,
+      currentInputLabel: (value) => value,
+    });
   }, [items, query]);
 
   return (

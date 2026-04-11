@@ -17,7 +17,7 @@ describe("buildMasterDataComboboxOptions", () => {
     ]);
   });
 
-  it("无精确匹配时会在首位注入使用当前输入", () => {
+  it("无精确匹配时会在首位注入当前输入", () => {
     const options = buildMasterDataComboboxOptions({
       items: [{ id: "1", name: "苹果" }],
       query: " 梨 ",
@@ -26,7 +26,7 @@ describe("buildMasterDataComboboxOptions", () => {
     expect(options).toEqual([
       {
         value: "free:梨",
-        label: "使用「梨」",
+        label: "梨",
         row: null,
       },
       {
