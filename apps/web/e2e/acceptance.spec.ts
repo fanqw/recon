@@ -155,3 +155,51 @@ test("进货地被关联时页面删除提示错误码映射文案", async ({ pa
   await row.getByRole("button", { name: "删除" }).click();
   await expect(page.getByRole("alert")).toContainText("该进货地已被关联，无法删除");
 });
+
+test("工作台导航支持新层级、侧栏折叠与主题持久化", async ({ page }) => {
+  const login = await page.request.post("/api/auth/login", {
+    data: { username: "admin", password: "admin123" },
+    headers: { "Content-Type": "application/json" },
+  });
+  expect(login.ok()).toBeTruthy();
+
+  await page.goto("/workspace");
+  await expect(
+    page.getByRole("heading", { name: "工作台", exact: true })
+  ).toBeVisible();
+
+  const nav = page.getByRole("navigation", { name: "主导航" });
+  await expect(nav.getByText("工作台", { exact: true })).toBeVisible();
+  await expect(nav.getByText("物料管理", { exact: true })).toBeVisible();
+  await expect(nav.getByText("订单管理", { exact: true })).toBeVisible();
+
+  await page.goto("/basic/category");
+  const breadcrumb = page.getByLabel("页面位置");
+  await expect(breadcrumb).toContainText("工作台");
+  await expect(breadcrumb).toContainText("物料管理");
+  await expect(breadcrumb).toContainText("商品分类");
+
+  const sidebar = page.getByTestId("dashboard-sidebar");
+  await expect(sidebar).toHaveAttribute("data-collapsed", "false");
+  await page.getByRole("button", { name: "收起侧栏" }).click();
+  await expect(sidebar).toHaveAttribute("data-collapsed", "true");
+  await expect(
+    page.getByRole("button", { name: "展开侧栏" })
+  ).toBeVisible();
+  await page.getByRole("button", { name: "展开侧栏" }).click();
+  await expect(sidebar).toHaveAttribute("data-collapsed", "false");
+
+  await page.getByRole("button", { name: "切换为深色主题" }).click();
+  await expect(page.locator("body")).toHaveAttribute("arco-theme", "dark");
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem("recon-theme")))
+    .toBe("dark");
+
+  await page.reload();
+  await expect(page.locator("body")).toHaveAttribute("arco-theme", "dark");
+  await page.getByRole("button", { name: "切换为浅色主题" }).click();
+  await expect(page.locator("body")).toHaveAttribute("arco-theme", "light");
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem("recon-theme")))
+    .toBe("light");
+});

@@ -15,7 +15,7 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-[#f2f3f5]">
+    <div className="dashboard-shell min-h-screen">
       <DashboardHeader username={user.username} />
       <div className="flex min-h-[calc(100vh-56px)]">
         <DashboardNav />

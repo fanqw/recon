@@ -3,6 +3,21 @@
 :root {
   --background: #f2f3f5;
   --foreground: #1d2129;
+  --surface: #ffffff;
+  --surface-soft: #f7f8fa;
+  --border: #e5e6eb;
+  --muted: #86909c;
+  --sidebar-width: 224px;
+  --sidebar-collapsed-width: 72px;
+}
+
+body[arco-theme="dark"] {
+  --background: #17171a;
+  --foreground: #f2f3f5;
+  --surface: #232326;
+  --surface-soft: #2a2a2f;
+  --border: #3c3c42;
+  --muted: #a9aeb8;
 }
 
 @theme inline {
@@ -19,6 +34,54 @@ body {
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+body,
+.dashboard-shell,
+.dashboard-header,
+.dashboard-sidebar,
+.dashboard-breadcrumb,
+.dashboard-panel {
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease;
+}
+
+.dashboard-shell {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.dashboard-header,
+.dashboard-sidebar,
+.dashboard-breadcrumb,
+.dashboard-panel {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.dashboard-sidebar {
+  width: var(--sidebar-width);
+}
+
+.dashboard-sidebar[data-collapsed="true"] {
+  width: var(--sidebar-collapsed-width);
+}
+
+.dashboard-sidebar .arco-menu {
+  background: transparent;
+}
+
+body[arco-theme="dark"] .dashboard-sidebar .arco-menu-light,
+body[arco-theme="dark"] .dashboard-sidebar .arco-menu-light .arco-menu-inline-header,
+body[arco-theme="dark"] .dashboard-sidebar .arco-menu-light .arco-menu-item {
+  background: transparent;
+  color: var(--foreground);
+}
+
+body[arco-theme="dark"] .dashboard-breadcrumb a {
+  color: #7bc7ff;
 }
 
 .arco-card {

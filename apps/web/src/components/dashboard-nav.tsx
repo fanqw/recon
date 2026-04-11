@@ -2,45 +2,112 @@
 
 import {
   IconCalendar,
+  IconDashboard,
   IconList,
   IconLocation,
+  IconMenuFold,
+  IconMenuUnfold,
   IconStorage,
   IconTags,
 } from "@arco-design/web-react/icon";
-import { Menu } from "@arco-design/web-react";
+import { Button, Menu, Tooltip, Typography } from "@arco-design/web-react";
+import {
+  defaultOpenKeysForPath,
+  findActiveWorkspaceNavItem,
+  workspaceNavEntries,
+  type WorkspaceNavEntry,
+} from "@/lib/workspace-nav";
 import { usePathname, useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 
-const navItems = [
-  { key: "/basic/category", label: "分类", icon: <IconList /> },
-  { key: "/basic/unit", label: "单位", icon: <IconStorage /> },
-  { key: "/basic/commodity", label: "商品", icon: <IconTags /> },
-  { key: "/basic/purchase-place", label: "进货地", icon: <IconLocation /> },
-  { key: "/order/list", label: "订单", icon: <IconCalendar /> },
-];
+function iconForKey(key: string) {
+  if (key === "/workspace") {
+    return <IconDashboard />;
+  }
+  if (key === "/basic") {
+    return <IconStorage />;
+  }
+  if (key === "/order") {
+    return <IconCalendar />;
+  }
+  if (key === "/basic/category") {
+    return <IconList />;
+  }
+  if (key === "/basic/commodity") {
+    return <IconTags />;
+  }
+  if (key === "/basic/purchase-place") {
+    return <IconLocation />;
+  }
 
-function activeKey(pathname: string): string {
-  const hit = navItems.find((item) => pathname === item.key || pathname.startsWith(`${item.key}/`));
-  return hit?.key ?? "/basic/category";
+  return <IconStorage />;
+}
+
+function menuLabel(entry: Pick<WorkspaceNavEntry, "key" | "label">) {
+  return (
+    <span className="inline-flex min-w-0 items-center gap-2">
+      <span className="inline-flex text-base">{iconForKey(entry.key)}</span>
+      <span className="truncate">{entry.label}</span>
+    </span>
+  );
+}
+
+function isGroup(entry: WorkspaceNavEntry): entry is Extract<WorkspaceNavEntry, { children: unknown[] }> {
+  return "children" in entry;
 }
 
 export function DashboardNav() {
   const router = useRouter();
   const pathname = usePathname();
+  const activeItem = useMemo(() => findActiveWorkspaceNavItem(pathname), [pathname]);
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <aside className="w-56 border-r border-[#e5e6eb] bg-white">
-      <Menu
-        style={{ width: "100%", paddingTop: 8 }}
-        selectedKeys={[activeKey(pathname)]}
-        onClickMenuItem={(key) => router.push(key)}
-      >
-        {navItems.map((item) => (
-          <Menu.Item key={item.key}>
-            <span className="mr-2 inline-flex items-center">{item.icon}</span>
-            {item.label}
-          </Menu.Item>
-        ))}
-      </Menu>
+    <aside
+      aria-label="主导航区域"
+      className="dashboard-sidebar flex shrink-0 flex-col border-r transition-[width] duration-200"
+      data-collapsed={String(collapsed)}
+      data-testid="dashboard-sidebar"
+    >
+      <div className="flex h-14 items-center justify-between gap-2 border-b px-3">
+        {!collapsed && (
+          <Typography.Text className="truncate" style={{ fontWeight: 600 }}>
+            对账系统
+          </Typography.Text>
+        )}
+        <Tooltip content={collapsed ? "展开侧栏" : "收起侧栏"} position="right">
+          <Button
+            aria-label={collapsed ? "展开侧栏" : "收起侧栏"}
+            icon={collapsed ? <IconMenuUnfold /> : <IconMenuFold />}
+            shape="circle"
+            size="small"
+            onClick={() => setCollapsed((value) => !value)}
+          />
+        </Tooltip>
+      </div>
+      <nav aria-label="主导航" className="py-2">
+        <Menu
+          collapse={collapsed}
+          defaultOpenKeys={defaultOpenKeysForPath(pathname)}
+          key={collapsed ? "collapsed" : pathname}
+          mode="vertical"
+          selectedKeys={[activeItem.key]}
+          style={{ width: "100%" }}
+          onClickMenuItem={(key) => router.push(key)}
+        >
+          {workspaceNavEntries.map((entry) =>
+            isGroup(entry) ? (
+              <Menu.SubMenu key={entry.key} selectable={false} title={menuLabel(entry)}>
+                {entry.children.map((child) => (
+                  <Menu.Item key={child.key}>{menuLabel(child)}</Menu.Item>
+                ))}
+              </Menu.SubMenu>
+            ) : (
+              <Menu.Item key={entry.key}>{menuLabel(entry)}</Menu.Item>
+            )
+          )}
+        </Menu>
+      </nav>
     </aside>
   );
 }
