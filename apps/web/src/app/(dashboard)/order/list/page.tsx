@@ -6,6 +6,7 @@ import {
   Input,
   Modal,
   Select,
+  Space,
   Table,
   Typography,
   type TableColumnProps,
@@ -43,6 +44,7 @@ export default function OrderListPage() {
   const [purchasePlaceId, setPurchasePlaceId] = useState("");
   const [desc, setDesc] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -117,6 +119,28 @@ export default function OrderListPage() {
     await loadList();
   }
 
+  async function removeRow(row: Order) {
+    if (!confirm(`确定删除订单「${row.name}」及其明细？`)) return;
+    setError(null);
+    setDeletingId(row.id);
+    try {
+      const res = await fetch(`/api/orders/${row.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError((data as { error?: string }).error ?? "删除订单失败");
+        return;
+      }
+      await loadList();
+    } catch {
+      setError("删除订单失败");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   function openCreate() {
     setError(null);
     setName("");
@@ -148,11 +172,22 @@ export default function OrderListPage() {
     {
       title: "操作",
       fixed: "right",
-      width: 84,
+      width: 132,
       render: (_, row) => (
-        <Link href={`/order/list/${row.id}`} className="text-xs text-[#165dff] hover:underline">
-          详情
-        </Link>
+        <Space size={4}>
+          <Link href={`/order/list/${row.id}`} className="text-xs text-[#165dff] hover:underline">
+            详情
+          </Link>
+          <Button
+            size="mini"
+            status="danger"
+            type="text"
+            loading={deletingId === row.id}
+            onClick={() => void removeRow(row)}
+          >
+            删除订单
+          </Button>
+        </Space>
       ),
     },
   ];
@@ -177,7 +212,7 @@ export default function OrderListPage() {
         columns={columns}
         data={items}
         pagination={{ pageSize: 10, showTotal: true }}
-        scroll={{ x: 1064 }}
+        scroll={{ x: 1112 }}
         noDataElement="暂无订单"
       />
 

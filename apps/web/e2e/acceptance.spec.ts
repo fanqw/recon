@@ -120,6 +120,100 @@ test("订单详情可触发导出 Excel 下载", async ({ page }) => {
   expect(download.suggestedFilename().toLowerCase()).toMatch(/\.xlsx$/);
 });
 
+test("订单删除入口迁移到列表并在删除后刷新移除", async ({ page }) => {
+  const login = await page.request.post("/api/auth/login", {
+    data: { username: "admin", password: "admin123" },
+    headers: { "Content-Type": "application/json" },
+  });
+  expect(login.ok()).toBeTruthy();
+
+  const suffix = Date.now();
+  const placeRes = await page.request.post("/api/purchase-places", {
+    data: {
+      place: `e2e-delete-place-${suffix}`,
+      marketName: `e2e-delete-market-${suffix}`,
+    },
+    headers: { "Content-Type": "application/json" },
+  });
+  expect(placeRes.status()).toBe(201);
+  const placeJson = (await placeRes.json()) as { item: { id: string } };
+
+  const orderName = `e2e-delete-order-${suffix}`;
+  const orderRes = await page.request.post("/api/orders", {
+    data: { name: orderName, purchasePlaceId: placeJson.item.id },
+    headers: { "Content-Type": "application/json" },
+  });
+  expect(orderRes.status()).toBe(201);
+  const orderJson = (await orderRes.json()) as { item: { id: string } };
+
+  await page.goto(`/order/list/${orderJson.item.id}`);
+  await expect(
+    page.getByRole("button", { name: "删除订单" })
+  ).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "新增明细" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "导出 Excel" })).toBeVisible();
+
+  await page.goto(`/order/list?q=${encodeURIComponent(orderName)}`);
+  const row = page.locator("tr").filter({ hasText: orderName }).first();
+  await expect(row).toBeVisible();
+  page.once("dialog", (dialog) => dialog.accept());
+  await row.getByRole("button", { name: "删除订单" }).click();
+  await expect(row).toHaveCount(0);
+  await expect(page.getByText(orderName)).toHaveCount(0);
+});
+
+test("订单列表删除失败时展示错误并保留列表项", async ({ page }) => {
+  const login = await page.request.post("/api/auth/login", {
+    data: { username: "admin", password: "admin123" },
+    headers: { "Content-Type": "application/json" },
+  });
+  expect(login.ok()).toBeTruthy();
+
+  const suffix = Date.now();
+  const placeRes = await page.request.post("/api/purchase-places", {
+    data: {
+      place: `e2e-delete-fail-place-${suffix}`,
+      marketName: `e2e-delete-fail-market-${suffix}`,
+    },
+    headers: { "Content-Type": "application/json" },
+  });
+  expect(placeRes.status()).toBe(201);
+  const placeJson = (await placeRes.json()) as { item: { id: string } };
+
+  const orderName = `e2e-delete-fail-order-${suffix}`;
+  const orderRes = await page.request.post("/api/orders", {
+    data: { name: orderName, purchasePlaceId: placeJson.item.id },
+    headers: { "Content-Type": "application/json" },
+  });
+  expect(orderRes.status()).toBe(201);
+  const orderJson = (await orderRes.json()) as { item: { id: string } };
+  const orderId = orderJson.item.id;
+
+  await page.route(`**/api/orders/${orderId}`, async (route) => {
+    if (route.request().method() === "DELETE") {
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "e2e 删除订单失败" }),
+      });
+      return;
+    }
+    await route.fallback();
+  });
+
+  await page.goto(`/order/list?q=${encodeURIComponent(orderName)}`);
+  const row = page.locator("tr").filter({ hasText: orderName }).first();
+  await expect(row).toBeVisible();
+  page.once("dialog", (dialog) => dialog.accept());
+  await row.getByRole("button", { name: "删除订单" }).click();
+  await expect(page.getByText("e2e 删除订单失败")).toBeVisible();
+  await expect(row).toBeVisible();
+
+  await page.unroute(`**/api/orders/${orderId}`);
+  const cleanup = await page.request.delete(`/api/orders/${orderId}`);
+  expect(cleanup.ok()).toBeTruthy();
+});
+
 test("进货地被关联时页面删除提示错误码映射文案", async ({ page }) => {
   const login = await page.request.post("/api/auth/login", {
     data: { username: "admin", password: "admin123" },

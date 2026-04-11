@@ -5,7 +5,6 @@ import {
   Card,
   Input,
   Modal,
-  Space,
   Typography,
 } from "@arco-design/web-react";
 import {
@@ -19,7 +18,7 @@ import {
 } from "@/components/order-detail/OrderDetailTable";
 import { downloadOrderDetailExcel } from "@/lib/order-detail/export-order-excel";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 type OrderHead = {
@@ -44,7 +43,6 @@ function defaultLineTotalNum(count: number, price: number): number {
 
 export default function OrderDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const orderId = params.id as string;
 
   const [order, setOrder] = useState<OrderHead | null>(null);
@@ -257,17 +255,6 @@ export default function OrderDetailPage() {
     await loadLines();
   }
 
-  async function handleDeleteOrder() {
-    if (!confirm("确定删除整个订单及其明细？")) return;
-    const res = await fetch(`/api/orders/${orderId}`, { method: "DELETE", credentials: "include" });
-    if (!res.ok) {
-      setError("删除订单失败");
-      return;
-    }
-    router.replace("/order/list");
-    router.refresh();
-  }
-
   async function handleExportExcel() {
     if (!order) return;
     setExporting(true);
@@ -297,18 +284,23 @@ export default function OrderDetailPage() {
   return (
     <div className="space-y-3">
       <Card >
-        <Space direction="vertical" size={8} style={{ width: "100%" }}>
-          <Link href="/order/list" className="text-[#165dff] hover:underline">← 返回订单列表</Link>
-          <Typography.Title heading={6}>订单：{order.name}</Typography.Title>
-          <Typography.Text>进货地：{order.purchasePlace.place} / {order.purchasePlace.marketName}</Typography.Text>
-          {order.desc ? <Typography.Text>备注：{order.desc}</Typography.Text> : null}
-          <Space>
+        <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+          <div className="min-w-0">
+            <Link href="/order/list" className="text-xs text-[#165dff] hover:underline">← 返回订单列表</Link>
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <Typography.Title heading={6} style={{ margin: 0 }}>订单：{order.name}</Typography.Title>
+              <Typography.Text type="secondary">进货地：{order.purchasePlace.place} / {order.purchasePlace.marketName}</Typography.Text>
+            </div>
+            {order.desc ? (
+              <Typography.Text type="secondary" className="mt-1 block">备注：{order.desc}</Typography.Text>
+            ) : null}
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
             <Button type="primary" onClick={startCreateLine}>新增明细</Button>
             <Button onClick={() => void handleExportExcel()} loading={exporting} disabled={lines.length === 0}>导出 Excel</Button>
-            <Button status="danger" onClick={() => void handleDeleteOrder()}>删除订单</Button>
-          </Space>
-          {error ? <Typography.Text type="danger">{error}</Typography.Text> : null}
-        </Space>
+          </div>
+        </div>
+        {error ? <Typography.Text type="danger" className="mt-2 block">{error}</Typography.Text> : null}
       </Card>
 
       <OrderDetailTable lines={lines} onEdit={startEditLine} onDelete={(id) => void removeLine(id)} />
