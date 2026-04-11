@@ -56,6 +56,12 @@ test("主导航各页可见且主按钮可点", async ({ page }) => {
   ).toBeVisible();
   await page.getByRole("button", { name: "新建" }).click();
 
+  await page.goto("/basic/purchase-place");
+  await expect(
+    page.getByRole("heading", { name: "进货地", exact: true })
+  ).toBeVisible();
+  await page.getByRole("button", { name: "新建" }).click();
+
   await page.goto("/order/list");
   await expect(
     page.getByRole("heading", { name: "订单", exact: true })
@@ -79,8 +85,20 @@ test("订单详情可触发导出 Excel 下载", async ({ page }) => {
   const commodityId = comJson.items[0]?.id;
   expect(commodityId).toBeTruthy();
 
+  const suffix = Date.now();
+  const placeRes = await page.request.post("/api/purchase-places", {
+    data: {
+      place: `e2e-place-${suffix}`,
+      marketName: `e2e-market-${suffix}`,
+    },
+    headers: { "Content-Type": "application/json" },
+  });
+  expect(placeRes.status()).toBe(201);
+  const placeJson = (await placeRes.json()) as { item: { id: string } };
+  const purchasePlaceId = placeJson.item.id;
+
   const ordRes = await page.request.post("/api/orders", {
-    data: { name: `e2e-export-${Date.now()}` },
+    data: { name: `e2e-export-${suffix}`, purchasePlaceId },
     headers: { "Content-Type": "application/json" },
   });
   expect(ordRes.status()).toBe(201);
@@ -100,4 +118,40 @@ test("订单详情可触发导出 Excel 下载", async ({ page }) => {
   await page.getByRole("button", { name: "导出 Excel" }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename().toLowerCase()).toMatch(/\.xlsx$/);
+});
+
+test("进货地被关联时页面删除提示错误码映射文案", async ({ page }) => {
+  const login = await page.request.post("/api/auth/login", {
+    data: { username: "admin", password: "admin123" },
+    headers: { "Content-Type": "application/json" },
+  });
+  expect(login.ok()).toBeTruthy();
+
+  const suffix = Date.now();
+  const placeText = `e2e-删除拦截-${suffix}`;
+  const marketText = `e2e-市场-${suffix}`;
+
+  const placeRes = await page.request.post("/api/purchase-places", {
+    data: { place: placeText, marketName: marketText },
+    headers: { "Content-Type": "application/json" },
+  });
+  expect(placeRes.status()).toBe(201);
+  const placeJson = (await placeRes.json()) as { item: { id: string } };
+
+  const orderRes = await page.request.post("/api/orders", {
+    data: { name: `e2e-order-${suffix}`, purchasePlaceId: placeJson.item.id },
+    headers: { "Content-Type": "application/json" },
+  });
+  expect(orderRes.status()).toBe(201);
+
+  await page.goto("/basic/purchase-place");
+  const row = page
+    .locator("tr")
+    .filter({ hasText: placeText })
+    .filter({ hasText: marketText })
+    .first();
+  await expect(row).toBeVisible();
+  page.once("dialog", (dialog) => dialog.accept());
+  await row.getByRole("button", { name: "删除" }).click();
+  await expect(page.getByRole("alert")).toContainText("该进货地已被关联，无法删除");
 });

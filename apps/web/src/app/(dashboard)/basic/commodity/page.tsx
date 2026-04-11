@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  isDeleteBlockCode,
+  messageForDeleteBlockCode,
+} from "@/lib/delete-block-codes";
 import { useCallback, useEffect, useState } from "react";
 
 type Category = { id: string; name: string };
@@ -137,7 +141,12 @@ export default function CommodityPage() {
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError((data as { error?: string }).error ?? "删除失败");
+      const code = (data as { code?: unknown }).code;
+      if (isDeleteBlockCode(code)) {
+        setError(messageForDeleteBlockCode(code));
+      } else {
+        setError((data as { error?: string }).error ?? "删除失败");
+      }
       return;
     }
     if (editingId === id) resetForm();

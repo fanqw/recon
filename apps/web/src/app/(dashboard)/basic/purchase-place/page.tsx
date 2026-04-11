@@ -6,19 +6,18 @@ import {
 } from "@/lib/delete-block-codes";
 import { useCallback, useEffect, useState } from "react";
 
-type Unit = {
+type PurchasePlace = {
   id: string;
-  name: string;
+  place: string;
+  marketName: string;
   desc: string | null;
 };
 
-/**
- * 单位管理页：列表 CRUD，对接 /api/units。
- */
-export default function UnitPage() {
-  const [items, setItems] = useState<Unit[]>([]);
+export default function PurchasePlacePage() {
+  const [items, setItems] = useState<PurchasePlace[]>([]);
   const [loading, setLoading] = useState(true);
-  const [name, setName] = useState("");
+  const [place, setPlace] = useState("");
+  const [marketName, setMarketName] = useState("");
   const [desc, setDesc] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -27,13 +26,13 @@ export default function UnitPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/units", { credentials: "include" });
+      const res = await fetch("/api/purchase-places", { credentials: "include" });
       const data = await res.json();
       if (!res.ok) {
         setError((data as { error?: string }).error ?? "加载失败");
         return;
       }
-      setItems((data as { items: Unit[] }).items ?? []);
+      setItems((data as { items: PurchasePlace[] }).items ?? []);
     } finally {
       setLoading(false);
     }
@@ -46,53 +45,52 @@ export default function UnitPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (editingId) {
-      const res = await fetch(`/api/units/${editingId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ name, desc: desc || undefined }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError((data as { error?: string }).error ?? "保存失败");
-        return;
-      }
-    } else {
-      const res = await fetch("/api/units", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ name, desc: desc || undefined }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError((data as { error?: string }).error ?? "创建失败");
-        return;
-      }
+    const payload = { place, marketName, desc: desc || undefined };
+    const res = editingId
+      ? await fetch(`/api/purchase-places/${editingId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        })
+      : await fetch("/api/purchase-places", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError((data as { error?: string }).error ?? "保存失败");
+      return;
     }
-    setName("");
+
+    setPlace("");
+    setMarketName("");
     setDesc("");
     setEditingId(null);
     await loadList();
   }
 
-  function startEdit(row: Unit) {
+  function startEdit(row: PurchasePlace) {
     setEditingId(row.id);
-    setName(row.name);
+    setPlace(row.place);
+    setMarketName(row.marketName);
     setDesc(row.desc ?? "");
   }
 
   function cancelEdit() {
     setEditingId(null);
-    setName("");
+    setPlace("");
+    setMarketName("");
     setDesc("");
   }
 
   async function removeRow(id: string) {
-    if (!confirm("确定删除该单位？")) return;
+    if (!confirm("确定删除该进货地？")) return;
     setError(null);
-    const res = await fetch(`/api/units/${id}`, {
+    const res = await fetch(`/api/purchase-places/${id}`, {
       method: "DELETE",
       credentials: "include",
     });
@@ -112,27 +110,34 @@ export default function UnitPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-semibold text-zinc-900">单位</h1>
+      <h1 className="mb-6 text-2xl font-semibold text-zinc-900">进货地</h1>
 
       <form
         onSubmit={handleSubmit}
         className="mb-8 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm"
       >
         <h2 className="mb-3 text-sm font-medium text-zinc-700">
-          {editingId ? "编辑单位" : "新建单位"}
+          {editingId ? "编辑进货地" : "新建进货地"}
         </h2>
         <div className="flex flex-wrap gap-3">
           <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="名称"
+            value={place}
+            onChange={(e) => setPlace(e.target.value)}
+            placeholder="进货地"
+            className="rounded border border-zinc-300 px-3 py-2 text-sm"
+            required
+          />
+          <input
+            value={marketName}
+            onChange={(e) => setMarketName(e.target.value)}
+            placeholder="市场名称"
             className="rounded border border-zinc-300 px-3 py-2 text-sm"
             required
           />
           <input
             value={desc}
             onChange={(e) => setDesc(e.target.value)}
-            placeholder="描述（可选）"
+            placeholder="备注（可选）"
             className="min-w-[200px] flex-1 rounded border border-zinc-300 px-3 py-2 text-sm"
           />
           <button
@@ -163,28 +168,30 @@ export default function UnitPage() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-zinc-200 bg-zinc-50">
             <tr>
-              <th className="px-4 py-3 font-medium text-zinc-700">名称</th>
-              <th className="px-4 py-3 font-medium text-zinc-700">描述</th>
+              <th className="px-4 py-3 font-medium text-zinc-700">进货地</th>
+              <th className="px-4 py-3 font-medium text-zinc-700">市场名称</th>
+              <th className="px-4 py-3 font-medium text-zinc-700">备注</th>
               <th className="px-4 py-3 font-medium text-zinc-700">操作</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={3} className="px-4 py-8 text-center text-zinc-500">
+                <td colSpan={4} className="px-4 py-8 text-center text-zinc-500">
                   加载中…
                 </td>
               </tr>
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-4 py-8 text-center text-zinc-500">
+                <td colSpan={4} className="px-4 py-8 text-center text-zinc-500">
                   暂无数据
                 </td>
               </tr>
             ) : (
               items.map((row) => (
                 <tr key={row.id} className="border-b border-zinc-100">
-                  <td className="px-4 py-3 text-zinc-900">{row.name}</td>
+                  <td className="px-4 py-3 text-zinc-900">{row.place}</td>
+                  <td className="px-4 py-3 text-zinc-700">{row.marketName}</td>
                   <td className="px-4 py-3 text-zinc-600">{row.desc ?? "—"}</td>
                   <td className="px-4 py-3">
                     <button

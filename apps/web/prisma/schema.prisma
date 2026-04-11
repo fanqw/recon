@@ -51,15 +51,31 @@ model Commodity {
   orderLines OrderCommodity[]
 }
 
-model Order {
-  id        String   @id @default(cuid())
-  name      String
-  desc      String?
-  deleted   Boolean  @default(false)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+model PurchasePlace {
+  id         String   @id @default(cuid())
+  place      String
+  marketName String   @map("market_name")
+  desc       String?
+  deleted    Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
+  orders Order[]
+}
+
+model Order {
+  id              String   @id @default(cuid())
+  name            String
+  purchasePlaceId String   @map("purchase_place_id")
+  desc            String?
+  deleted         Boolean  @default(false)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  purchasePlace    PurchasePlace    @relation(fields: [purchasePlaceId], references: [id], onDelete: Restrict)
   orderCommodities OrderCommodity[]
+
+  @@index([purchasePlaceId])
 }
 
 model OrderCommodity {

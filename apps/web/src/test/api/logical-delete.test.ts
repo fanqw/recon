@@ -10,6 +10,25 @@ function suffix(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+async function createPurchasePlace(
+  baseUrl: string,
+  cookie: string,
+  suf: string
+): Promise<string> {
+  const res = await postJsonWithCookie(
+    baseUrl,
+    "/api/purchase-places",
+    {
+      place: `ld-place-${suf}`,
+      marketName: `ld-market-${suf}`,
+    },
+    cookie
+  );
+  expect(res.status).toBe(201);
+  const body = (await res.json()) as { item: { id: string } };
+  return body.item.id;
+}
+
 describe("逻辑删除后默认列表不再包含", () => {
   it("DELETE /api/categories/[id]", async () => {
     const baseUrl = inject("testBaseUrl");
@@ -128,14 +147,49 @@ describe("逻辑删除后默认列表不再包含", () => {
     expect(itemsAfter.some((r) => r.id === com.item.id)).toBe(false);
   });
 
+  it("DELETE /api/purchase-places/[id] 后默认列表不含该进货地", async () => {
+    const baseUrl = inject("testBaseUrl");
+    const cookie = await loginAsAdmin(baseUrl);
+    const suf = suffix();
+    const purchasePlaceId = await createPurchasePlace(baseUrl, cookie, suf);
+
+    const listBefore = await fetchWithCookie(
+      baseUrl,
+      "/api/purchase-places",
+      {},
+      cookie
+    );
+    const itemsBefore = ((await listBefore.json()) as { items: { id: string }[] })
+      .items;
+    expect(itemsBefore.some((r) => r.id === purchasePlaceId)).toBe(true);
+
+    const del = await deleteWithCookie(
+      baseUrl,
+      `/api/purchase-places/${purchasePlaceId}`,
+      cookie
+    );
+    expect(del.status).toBe(200);
+
+    const listAfter = await fetchWithCookie(
+      baseUrl,
+      "/api/purchase-places",
+      {},
+      cookie
+    );
+    const itemsAfter = ((await listAfter.json()) as { items: { id: string }[] })
+      .items;
+    expect(itemsAfter.some((r) => r.id === purchasePlaceId)).toBe(false);
+  });
+
   it("DELETE /api/orders/[id] 后列表不含该订单", async () => {
     const baseUrl = inject("testBaseUrl");
     const cookie = await loginAsAdmin(baseUrl);
     const suf = suffix();
+    const purchasePlaceId = await createPurchasePlace(baseUrl, cookie, suf);
     const ordRes = await postJsonWithCookie(
       baseUrl,
       "/api/orders",
-      { name: `ld-ord-${suf}` },
+      { name: `ld-ord-${suf}`, purchasePlaceId },
       cookie
     );
     expect(ordRes.status).toBe(201);
@@ -189,11 +243,12 @@ describe("逻辑删除后默认列表不再包含", () => {
     );
     expect(comRes.status).toBe(201);
     const com = (await comRes.json()) as { item: { id: string } };
+    const purchasePlaceId = await createPurchasePlace(baseUrl, cookie, suf);
 
     const ordRes = await postJsonWithCookie(
       baseUrl,
       "/api/orders",
-      { name: `ld-o3-${suf}` },
+      { name: `ld-o3-${suf}`, purchasePlaceId },
       cookie
     );
     expect(ordRes.status).toBe(201);

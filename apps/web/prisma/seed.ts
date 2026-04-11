@@ -4,7 +4,10 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 /**
- * 初始化种子数据：写入可登录的管理员账号（admin / admin123）及贴近业务的演示分类、单位、商品（水果 / 斤 / 苹果）。
+ * 初始化种子数据：
+ * 1) 保留管理员账号（admin / admin123）
+ * 2) 清空历史业务数据（订单、明细、主数据）
+ * 3) 写入语义化中文 mock 数据（含进货地与订单样例）
  */
 async function main(): Promise<void> {
   const passwordHash = await bcrypt.hash("admin123", 10);
@@ -14,42 +17,53 @@ async function main(): Promise<void> {
     create: { username: "admin", passwordHash },
   });
 
-  let cat = await prisma.category.findFirst({
-    where: { name: "水果", deleted: false },
-  });
-  if (!cat) {
-    cat = await prisma.category.create({
-      data: { name: "水果", desc: "种子数据：水果类" },
-    });
-  }
+  await prisma.$transaction([
+    prisma.orderCommodity.deleteMany({}),
+    prisma.order.deleteMany({}),
+    prisma.commodity.deleteMany({}),
+    prisma.category.deleteMany({}),
+    prisma.unit.deleteMany({}),
+    prisma.purchasePlace.deleteMany({}),
+  ]);
 
-  let unit = await prisma.unit.findFirst({
-    where: { name: "斤", deleted: false },
+  const category = await prisma.category.create({
+    data: { name: "蔬菜", desc: "语义化样例：蔬菜类" },
   });
-  if (!unit) {
-    unit = await prisma.unit.create({
-      data: { name: "斤", desc: "种子数据：重量单位" },
-    });
-  }
-
-  const existingApple = await prisma.commodity.findFirst({
-    where: {
-      name: "苹果",
-      deleted: false,
-      categoryId: cat.id,
-      unitId: unit.id,
+  const unit = await prisma.unit.create({
+    data: { name: "公斤", desc: "语义化样例：重量单位" },
+  });
+  const purchasePlace = await prisma.purchasePlace.create({
+    data: {
+      place: "广州白云",
+      marketName: "江南果菜批发市场",
+      desc: "凌晨档口进货",
     },
   });
-  if (!existingApple) {
-    await prisma.commodity.create({
-      data: {
-        name: "苹果",
-        categoryId: cat.id,
-        unitId: unit.id,
-        desc: "种子数据：苹果",
-      },
-    });
-  }
+  const commodity = await prisma.commodity.create({
+    data: {
+      name: "西红柿",
+      categoryId: category.id,
+      unitId: unit.id,
+      desc: "语义化样例：番茄",
+    },
+  });
+  const order = await prisma.order.create({
+    data: {
+      name: "示例采购单-蔬菜",
+      purchasePlaceId: purchasePlace.id,
+      desc: "用于演示进货地关联",
+    },
+  });
+  await prisma.orderCommodity.create({
+    data: {
+      orderId: order.id,
+      commodityId: commodity.id,
+      count: 10,
+      price: "6.80",
+      lineTotal: "68.00",
+      desc: "语义化样例：当天特价",
+    },
+  });
 }
 
 main()
