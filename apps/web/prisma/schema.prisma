@@ -74,6 +74,8 @@ model Order {
 
   purchasePlace    PurchasePlace    @relation(fields: [purchasePlaceId], references: [id], onDelete: Restrict)
   orderCommodities OrderCommodity[]
+
+  @@index([purchasePlaceId])
 }
 
 model OrderCommodity {

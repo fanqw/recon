@@ -79,8 +79,20 @@ test("订单详情可触发导出 Excel 下载", async ({ page }) => {
   const commodityId = comJson.items[0]?.id;
   expect(commodityId).toBeTruthy();
 
+  const suffix = Date.now();
+  const placeRes = await page.request.post("/api/purchase-places", {
+    data: {
+      place: `e2e-place-${suffix}`,
+      marketName: `e2e-market-${suffix}`,
+    },
+    headers: { "Content-Type": "application/json" },
+  });
+  expect(placeRes.status()).toBe(201);
+  const placeJson = (await placeRes.json()) as { item: { id: string } };
+  const purchasePlaceId = placeJson.item.id;
+
   const ordRes = await page.request.post("/api/orders", {
-    data: { name: `e2e-export-${Date.now()}` },
+    data: { name: `e2e-export-${suffix}`, purchasePlaceId },
     headers: { "Content-Type": "application/json" },
   });
   expect(ordRes.status()).toBe(201);
