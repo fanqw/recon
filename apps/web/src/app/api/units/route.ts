@@ -25,7 +25,12 @@ export async function GET(req: Request) {
     where: {
       deleted: false,
       ...(q
-        ? { name: { contains: q, mode: "insensitive" as const } }
+        ? {
+            OR: [
+              { name: { contains: q, mode: "insensitive" as const } },
+              { desc: { contains: q, mode: "insensitive" as const } },
+            ],
+          }
         : {}),
     },
     orderBy: { updatedAt: "desc" },

@@ -1,5 +1,14 @@
 import { describe, expect, inject, it } from "vitest";
-import { fetchWithCookie, loginAsAdmin, postJsonWithCookie } from "../http-client";
+import {
+  fetchWithCookie,
+  loginAsAdmin,
+  patchJsonWithCookie,
+  postJsonWithCookie,
+} from "../http-client";
+
+function suffix(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
 describe("/api/purchase-places", () => {
   it("未带 Cookie 时 GET 返回 401", async () => {
@@ -66,5 +75,66 @@ describe("/api/purchase-places", () => {
       cookie,
     );
     expect(duplicate.status).toBe(409);
+  });
+
+  it("q 可命中进货地、市场名称与描述，且按 updatedAt desc 排序", async () => {
+    const baseUrl = inject("testBaseUrl");
+    const cookie = await loginAsAdmin(baseUrl);
+    const suf = suffix();
+    const q = `purchase-place-search-${suf}`;
+
+    const placeRes = await postJsonWithCookie(
+      baseUrl,
+      "/api/purchase-places",
+      { place: `${q}-place`, marketName: `market-a-${suf}`, desc: "alpha" },
+      cookie,
+    );
+    expect(placeRes.status).toBe(201);
+    const placeItem = (await placeRes.json()) as { item: { id: string } };
+
+    const marketRes = await postJsonWithCookie(
+      baseUrl,
+      "/api/purchase-places",
+      { place: `place-b-${suf}`, marketName: `${q}-market`, desc: "beta" },
+      cookie,
+    );
+    expect(marketRes.status).toBe(201);
+    const marketItem = (await marketRes.json()) as { item: { id: string } };
+
+    const descRes = await postJsonWithCookie(
+      baseUrl,
+      "/api/purchase-places",
+      { place: `place-c-${suf}`, marketName: `market-c-${suf}`, desc: `gamma ${q}` },
+      cookie,
+    );
+    expect(descRes.status).toBe(201);
+    const descItem = (await descRes.json()) as { item: { id: string } };
+
+    const bump = await patchJsonWithCookie(
+      baseUrl,
+      `/api/purchase-places/${marketItem.item.id}`,
+      { desc: "beta-updated" },
+      cookie,
+    );
+    expect(bump.status).toBe(200);
+
+    const res = await fetchWithCookie(
+      baseUrl,
+      `/api/purchase-places?q=${encodeURIComponent(q)}`,
+      {},
+      cookie,
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { items: Array<{ id: string }> };
+    const ids = body.items.map((item) => item.id);
+    expect(ids).toHaveLength(3);
+    expect(ids[0]).toBe(marketItem.item.id);
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        marketItem.item.id,
+        placeItem.item.id,
+        descItem.item.id,
+      ]),
+    );
   });
 });

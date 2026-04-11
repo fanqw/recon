@@ -37,6 +37,7 @@ export async function GET(req: Request) {
             OR: [
               { place: { contains: q, mode: "insensitive" as const } },
               { marketName: { contains: q, mode: "insensitive" as const } },
+              { desc: { contains: q, mode: "insensitive" as const } },
             ],
           }
         : {}),
