@@ -11,6 +11,17 @@
 - **WHEN** 用户点击任一子菜单项
 - **THEN** 系统 SHALL 跳转至该菜单对应路由并高亮当前菜单项
 
+### Requirement: 侧边栏支持收起与展开
+系统 SHALL 提供侧边栏收起/展开能力，以适配高密度操作场景；收起后 MUST 保留图标导航与当前激活项可识别性。
+
+#### Scenario: 用户点击收起按钮后侧栏折叠
+- **WHEN** 用户触发侧栏收起操作
+- **THEN** 侧栏 SHALL 以紧凑宽度展示，仅保留图标与激活态
+
+#### Scenario: 用户点击展开按钮后恢复完整菜单
+- **WHEN** 用户再次触发展开操作
+- **THEN** 侧栏 SHALL 恢复分组与文字菜单完整显示
+
 ### Requirement: 面包屑与导航层级一致
 系统 SHALL 根据当前路由显示与菜单分组一致的面包屑路径，层级与文案 MUST 与侧边栏结构保持一致。
 
@@ -22,12 +33,12 @@
 - **WHEN** 用户访问订单列表页面
 - **THEN** 面包屑 SHALL 显示“工作台 / 订单管理 / 订单列表”
 
-### Requirement: Header 提供主题一键切换
-系统 SHALL 在 header 提供主题一键切换能力，支持至少 light 与 dark 两种主题，并在刷新后保持上次选择。
+### Requirement: Header 提供 light/dark 主题切换
+系统 SHALL 在 header 提供主题一键切换能力，且仅包含 `light` 与 `dark` 两种主题；切换后刷新页面 MUST 保持上次选择。
 
 #### Scenario: 用户切换主题后立即生效
 - **WHEN** 用户点击 header 中主题切换控件
-- **THEN** 系统 SHALL 在当前会话立即切换主题并更新全局组件外观
+- **THEN** 系统 SHALL 在当前会话立即切换 light/dark 外观
 
 #### Scenario: 刷新后主题保持
 - **WHEN** 用户切换主题后刷新页面
