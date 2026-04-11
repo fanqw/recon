@@ -139,15 +139,6 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
    - If only warnings: "No critical issues. Y warning(s) to consider. Ready for archive (with noted improvements)."
    - If all clear: "All checks passed. Ready for archive."
 
-9. **同步 tasks.md 勾选（本仓库必需）**
-
-   输出验证报告之后：
-
-   - **若** Final Assessment **无 CRITICAL**（可归档 / 全通过），或用户**明确确认**验证通过：必须先 **Read** `.cursor/skills/openspec-sync-task-checkboxes/SKILL.md`，再按该技能更新 `openspec/changes/<name>/tasks.md`（有证据则 `- [x]`，否则注明推迟/不适用）。
-   - **若**仍存在与**需求或实现缺失**相关的 CRITICAL：不得靠勾选掩盖；先补实现或调整范围，再次验证通过后再执行上一步。
-
-   与根目录 `AGENTS.md` 中「OpenSpec 与 Agent 约定」一致。
-
 **Verification Heuristics**
 
 - **Completeness**: Focus on objective checklist items (checkboxes, requirements list)
