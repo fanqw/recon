@@ -1,4 +1,96 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+async function loginByApi(page: Page) {
+  const login = await page.request.post("/api/auth/login", {
+    data: { username: "admin", password: "admin123" },
+    headers: { "Content-Type": "application/json" },
+  });
+  expect(login.ok()).toBeTruthy();
+}
+
+async function createPurchasePlace(
+  page: Page,
+  suffix: string,
+  overrides: Partial<{ place: string; marketName: string; desc: string }> = {},
+) {
+  const placeRes = await page.request.post("/api/purchase-places", {
+    data: {
+      place: overrides.place ?? `e2e-place-${suffix}`,
+      marketName: overrides.marketName ?? `e2e-market-${suffix}`,
+      desc: overrides.desc,
+    },
+    headers: { "Content-Type": "application/json" },
+  });
+  expect(placeRes.status()).toBe(201);
+  const placeJson = (await placeRes.json()) as { item: { id: string } };
+  return placeJson.item.id;
+}
+
+async function createOrder(
+  page: Page,
+  suffix: string,
+  purchasePlaceId: string,
+  overrides: Partial<{ name: string; desc: string }> = {},
+) {
+  const orderRes = await page.request.post("/api/orders", {
+    data: {
+      name: overrides.name ?? `e2e-order-${suffix}`,
+      purchasePlaceId,
+      desc: overrides.desc,
+    },
+    headers: { "Content-Type": "application/json" },
+  });
+  expect(orderRes.status()).toBe(201);
+  const orderJson = (await orderRes.json()) as { item: { id: string } };
+  return orderJson.item.id;
+}
+
+async function createCategory(page: Page, name: string, desc: string) {
+  const res = await page.request.post("/api/categories", {
+    data: { name, desc },
+    headers: { "Content-Type": "application/json" },
+  });
+  expect(res.status()).toBe(201);
+  const body = (await res.json()) as { item: { id: string } };
+  return body.item.id;
+}
+
+async function createUnit(page: Page, name: string, desc: string) {
+  const res = await page.request.post("/api/units", {
+    data: { name, desc },
+    headers: { "Content-Type": "application/json" },
+  });
+  expect(res.status()).toBe(201);
+  const body = (await res.json()) as { item: { id: string } };
+  return body.item.id;
+}
+
+async function createCommodity(
+  page: Page,
+  data: { name: string; desc: string; categoryId: string; unitId: string },
+) {
+  const res = await page.request.post("/api/commodities", {
+    data,
+    headers: { "Content-Type": "application/json" },
+  });
+  expect(res.status()).toBe(201);
+  const body = (await res.json()) as { item: { id: string } };
+  return body.item.id;
+}
+
+async function expectBreadcrumb(page: Page, texts: string[]) {
+  const breadcrumb = page.getByLabel("页面位置");
+  for (const text of texts) {
+    await expect(breadcrumb).toContainText(text);
+  }
+}
+
+async function rowTexts(page: Page) {
+  await page.locator("tbody tr").first().waitFor({ state: "visible" });
+  return page.locator("tbody tr").evaluateAll((rows) =>
+    rows.map((row) => row.textContent ?? ""),
+  );
+}
 
 /**
  * 未携带会话时访问受保护路由，中间件应重定向到登录页（可带 `from` 查询参数）。
@@ -247,7 +339,7 @@ test("进货地被关联时页面删除提示错误码映射文案", async ({ pa
   await expect(row).toBeVisible();
   page.once("dialog", (dialog) => dialog.accept());
   await row.getByRole("button", { name: "删除" }).click();
-  await expect(page.getByRole("alert")).toContainText("该进货地已被关联，无法删除");
+  await expect(page.getByText("该进货地已被关联，无法删除")).toBeVisible();
 });
 
 test("工作台导航支持新层级、侧栏折叠与主题持久化", async ({ page }) => {
@@ -296,4 +388,179 @@ test("工作台导航支持新层级、侧栏折叠与主题持久化", async ({
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem("recon-theme")))
     .toBe("light");
+});
+
+test("导航子菜单点击与多路径面包屑保持一致", async ({ page }) => {
+  await loginByApi(page);
+
+  await page.goto("/workspace");
+  const nav = page.getByRole("navigation", { name: "主导航" });
+
+  await nav.getByText("物料管理", { exact: true }).click();
+  await nav.getByText("商品信息", { exact: true }).click();
+  await expect(page).toHaveURL(/\/basic\/commodity$/);
+  await expectBreadcrumb(page, ["工作台", "物料管理", "商品信息"]);
+
+  await nav.getByText("商品单位", { exact: true }).click();
+  await expect(page).toHaveURL(/\/basic\/unit$/);
+  await expectBreadcrumb(page, ["工作台", "物料管理", "商品单位"]);
+
+  await nav.getByText("订单管理", { exact: true }).click();
+  await nav.getByText("订单列表", { exact: true }).click();
+  await expect(page).toHaveURL(/\/order\/list$/);
+  await expectBreadcrumb(page, ["工作台", "订单管理", "订单列表"]);
+
+  await page.getByRole("button", { name: "收起侧栏" }).click();
+  await expect(page.getByTestId("dashboard-sidebar")).toHaveAttribute(
+    "data-collapsed",
+    "true",
+  );
+  await page.getByRole("button", { name: "展开侧栏" }).click();
+  await expect(page.getByTestId("dashboard-sidebar")).toHaveAttribute(
+    "data-collapsed",
+    "false",
+  );
+
+  await nav.getByText("物料管理", { exact: true }).click();
+  await nav.getByText("商品分类", { exact: true }).click();
+  await expect(page).toHaveURL(/\/basic\/category$/);
+  await expectBreadcrumb(page, ["工作台", "物料管理", "商品分类"]);
+});
+
+test("列表关键行为覆盖搜索、备注文案、时间列与默认倒序", async ({ page }) => {
+  await loginByApi(page);
+
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const olderCategoryName = `e2e-cat-old-${suffix}`;
+  const newerCategoryName = `e2e-cat-new-${suffix}`;
+  const unitName = `e2e-unit-${suffix}`;
+  const commodityName = `e2e-commodity-${suffix}`;
+  const placeMarket = `e2e-market-${suffix}`;
+  const olderOrderName = `e2e-order-old-${suffix}`;
+  const newerOrderName = `e2e-order-new-${suffix}`;
+
+  const olderCategoryId = await createCategory(
+    page,
+    olderCategoryName,
+    `e2e-cat-remark-old-${suffix}`,
+  );
+  await page.waitForTimeout(25);
+  await createCategory(page, newerCategoryName, `e2e-cat-remark-new-${suffix}`);
+  const unitId = await createUnit(page, unitName, `e2e-unit-remark-${suffix}`);
+  await createCommodity(page, {
+    name: commodityName,
+    desc: `e2e-commodity-remark-${suffix}`,
+    categoryId: olderCategoryId,
+    unitId,
+  });
+  const purchasePlaceId = await createPurchasePlace(page, suffix, {
+    place: `e2e-place-${suffix}`,
+    marketName: placeMarket,
+    desc: `e2e-place-remark-${suffix}`,
+  });
+  await createOrder(page, `${suffix}-old`, purchasePlaceId, {
+    name: olderOrderName,
+    desc: `e2e-order-remark-old-${suffix}`,
+  });
+  await page.waitForTimeout(25);
+  await createOrder(page, `${suffix}-new`, purchasePlaceId, {
+    name: newerOrderName,
+    desc: `e2e-order-remark-new-${suffix}`,
+  });
+
+  await page.goto("/basic/category");
+  await expect(page.locator("thead")).toContainText("备注");
+  await expect(page.locator("thead")).toContainText("创建时间");
+  await expect(page.locator("thead")).toContainText("更新时间");
+  const categorySearch = page.getByPlaceholder("搜索名称或备注");
+  await categorySearch.fill(olderCategoryName);
+  await expect(page.getByText(olderCategoryName)).toBeVisible();
+  await expect(page.getByText(newerCategoryName)).toHaveCount(0);
+  await categorySearch.fill("");
+  await expect(page.getByText(newerCategoryName)).toBeVisible();
+  await expect(page.getByText(olderCategoryName)).toBeVisible();
+  const categoryRows = await rowTexts(page);
+  expect(categoryRows.findIndex((row) => row.includes(newerCategoryName))).toBeLessThan(
+    categoryRows.findIndex((row) => row.includes(olderCategoryName)),
+  );
+
+  await page.goto("/basic/commodity");
+  await expect(page.locator("thead")).toContainText("备注");
+  await expect(page.locator("thead")).toContainText("创建时间");
+  await expect(page.locator("thead")).toContainText("更新时间");
+  await page.getByPlaceholder("搜索名称、分类、单位或备注").fill(unitName);
+  await expect(page.getByText(commodityName)).toBeVisible();
+
+  await page.goto("/basic/purchase-place");
+  await expect(page.locator("thead")).toContainText("备注");
+  await expect(page.locator("thead")).toContainText("创建时间");
+  await expect(page.locator("thead")).toContainText("更新时间");
+  await page.getByPlaceholder("搜索进货地、市场名称或备注").fill(placeMarket);
+  await expect(page.getByText(placeMarket)).toBeVisible();
+
+  await page.goto("/order/list");
+  await expect(page.locator("thead")).toContainText("备注");
+  await expect(page.locator("thead")).toContainText("创建时间");
+  await expect(page.locator("thead")).toContainText("更新时间");
+  await page.getByPlaceholder("搜索订单、进货地、市场名称或备注").fill(placeMarket);
+  await expect(page.getByText(newerOrderName)).toBeVisible();
+  await expect(page.getByText(olderOrderName)).toBeVisible();
+  const orderRows = await rowTexts(page);
+  expect(orderRows.findIndex((row) => row.includes(newerOrderName))).toBeLessThan(
+    orderRows.findIndex((row) => row.includes(olderOrderName)),
+  );
+});
+
+test("订单详情紧凑信息区首屏保留明细与主操作", async ({ page }) => {
+  await loginByApi(page);
+  await page.setViewportSize({ width: 1280, height: 720 });
+
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const commodityRes = await page.request.get("/api/commodities");
+  expect(commodityRes.ok()).toBeTruthy();
+  const commodityJson = (await commodityRes.json()) as {
+    items: { id: string; name: string }[];
+  };
+  const commodity = commodityJson.items[0];
+  expect(commodity?.id).toBeTruthy();
+
+  const purchasePlaceId = await createPurchasePlace(page, suffix, {
+    place: `e2e-compact-place-${suffix}`,
+    marketName: `e2e-compact-market-${suffix}`,
+    desc: `e2e-compact-place-remark-${suffix}`,
+  });
+  const orderName = `e2e-compact-order-${suffix}`;
+  const orderId = await createOrder(page, suffix, purchasePlaceId, {
+    name: orderName,
+    desc: `e2e-compact-order-remark-${suffix}`,
+  });
+  const lineRes = await page.request.post("/api/order-lines", {
+    data: { orderId, commodityId: commodity.id, count: 3, price: 8.8 },
+    headers: { "Content-Type": "application/json" },
+  });
+  expect(lineRes.ok()).toBeTruthy();
+
+  await page.goto(`/order/list/${orderId}`);
+  await expect(page.getByText(`订单：${orderName}`)).toBeVisible();
+  await expect(page.getByText("进货地：")).toBeVisible();
+  await expect(page.getByText("备注：")).toBeVisible();
+  await expect(page.getByRole("button", { name: "新增明细" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "导出 Excel" })).toBeVisible();
+  await expect(page.locator("thead")).toContainText("分类");
+  await expect(page.locator("tbody")).toContainText(commodity.name);
+
+  const metrics = await page.evaluate(() => {
+    const detailCard = document.querySelector(".arco-card")?.getBoundingClientRect();
+    const detailTable = document.querySelector(".arco-table")?.getBoundingClientRect();
+    return {
+      detailCardHeight: detailCard?.height ?? 0,
+      tableTop: detailTable?.top ?? 0,
+      viewportHeight: window.innerHeight,
+    };
+  });
+
+  expect(metrics.detailCardHeight).toBeGreaterThan(0);
+  expect(metrics.detailCardHeight).toBeLessThanOrEqual(180);
+  expect(metrics.tableTop).toBeGreaterThan(0);
+  expect(metrics.tableTop).toBeLessThan(metrics.viewportHeight * 0.7);
 });
