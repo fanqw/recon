@@ -14,6 +14,8 @@ import {
   isDeleteBlockCode,
   messageForDeleteBlockCode,
 } from "@/lib/delete-block-codes";
+import { formatDateTime } from "@/lib/datetime";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 type PurchasePlace = {
@@ -21,11 +23,18 @@ type PurchasePlace = {
   place: string;
   marketName: string;
   desc: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export default function PurchasePlacePage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlQuery = searchParams.get("q") ?? "";
   const [items, setItems] = useState<PurchasePlace[]>([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState(urlQuery);
   const [place, setPlace] = useState("");
   const [marketName, setMarketName] = useState("");
   const [desc, setDesc] = useState("");
@@ -33,11 +42,19 @@ export default function PurchasePlacePage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    setQuery(urlQuery);
+  }, [urlQuery]);
+
   const loadList = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/purchase-places", { credentials: "include" });
+      const q = query.trim();
+      const url = q
+        ? `/api/purchase-places?q=${encodeURIComponent(q)}`
+        : "/api/purchase-places";
+      const res = await fetch(url, { credentials: "include" });
       const data = await res.json();
       if (!res.ok) {
         setError((data as { error?: string }).error ?? "加载失败");
@@ -47,11 +64,21 @@ export default function PurchasePlacePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [query]);
 
   useEffect(() => {
     void loadList();
   }, [loadList]);
+
+  function handleQueryChange(value: string) {
+    setQuery(value);
+    const params = new URLSearchParams(searchParams.toString());
+    const q = value.trim();
+    if (q) params.set("q", q);
+    else params.delete("q");
+    const nextQuery = params.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -121,15 +148,29 @@ export default function PurchasePlacePage() {
   }
 
   const columns: TableColumnProps<PurchasePlace>[] = [
-    { title: "进货地", dataIndex: "place" },
-    { title: "市场名称", dataIndex: "marketName" },
-    { title: "备注", render: (_, row) => row.desc ?? "—" },
+    { title: "进货地", dataIndex: "place", width: 180 },
+    { title: "市场名称", dataIndex: "marketName", width: 180 },
+    { title: "备注", width: 240, render: (_, row) => row.desc ?? "—" },
+    {
+      title: "创建时间",
+      dataIndex: "createdAt",
+      width: 170,
+      render: (_, row) => formatDateTime(row.createdAt),
+    },
+    {
+      title: "更新时间",
+      dataIndex: "updatedAt",
+      width: 170,
+      render: (_, row) => formatDateTime(row.updatedAt),
+    },
     {
       title: "操作",
+      fixed: "right",
+      width: 96,
       render: (_, row) => (
-        <Space>
-          <Button type="text" onClick={() => openEdit(row)}>编辑</Button>
-          <Button status="danger" type="text" onClick={() => void removeRow(row.id)}>删除</Button>
+        <Space size={4}>
+          <Button size="mini" type="text" onClick={() => openEdit(row)}>编辑</Button>
+          <Button size="mini" status="danger" type="text" onClick={() => void removeRow(row.id)}>删除</Button>
         </Space>
       ),
     },
@@ -139,16 +180,23 @@ export default function PurchasePlacePage() {
     <Card
       title={<Typography.Title heading={6}>进货地</Typography.Title>}
       extra={<Button type="primary" onClick={openCreate}>新建</Button>}
-      
     >
-      {error ? <Typography.Text type="danger">{error}</Typography.Text> : null}
+      {error ? <Typography.Text type="error">{error}</Typography.Text> : null}
+      <div className={error ? "my-3 max-w-md" : "mb-3 max-w-md"}>
+        <Input
+          allowClear
+          value={query}
+          onChange={handleQueryChange}
+          placeholder="搜索进货地、市场名称或备注"
+        />
+      </div>
       <Table
-        style={{ marginTop: error ? 12 : 0 }}
         rowKey="id"
         loading={loading}
         columns={columns}
         data={items}
         pagination={{ pageSize: 10, showTotal: true }}
+        scroll={{ x: 1036 }}
         noDataElement="暂无数据"
       />
 

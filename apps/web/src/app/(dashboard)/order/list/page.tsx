@@ -10,7 +10,9 @@ import {
   Typography,
   type TableColumnProps,
 } from "@arco-design/web-react";
+import { formatDateTime } from "@/lib/datetime";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 type Order = {
@@ -18,6 +20,8 @@ type Order = {
   name: string;
   desc: string | null;
   purchasePlace: PurchasePlace;
+  createdAt: string;
+  updatedAt: string;
 };
 
 type PurchasePlace = {
@@ -27,20 +31,31 @@ type PurchasePlace = {
 };
 
 export default function OrderListPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlQuery = searchParams.get("q") ?? "";
   const [items, setItems] = useState<Order[]>([]);
   const [purchasePlaces, setPurchasePlaces] = useState<PurchasePlace[]>([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState(urlQuery);
   const [name, setName] = useState("");
   const [purchasePlaceId, setPurchasePlaceId] = useState("");
   const [desc, setDesc] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    setQuery(urlQuery);
+  }, [urlQuery]);
+
   const loadList = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/orders", { credentials: "include" });
+      const q = query.trim();
+      const url = q ? `/api/orders?q=${encodeURIComponent(q)}` : "/api/orders";
+      const res = await fetch(url, { credentials: "include" });
       const data = await res.json();
       if (!res.ok) {
         setError((data as { error?: string }).error ?? "加载失败");
@@ -50,7 +65,7 @@ export default function OrderListPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [query]);
 
   const loadPurchasePlaces = useCallback(async () => {
     const res = await fetch("/api/purchase-places", { credentials: "include" });
@@ -66,6 +81,16 @@ export default function OrderListPage() {
     void loadList();
     void loadPurchasePlaces();
   }, [loadList, loadPurchasePlaces]);
+
+  function handleQueryChange(value: string) {
+    setQuery(value);
+    const params = new URLSearchParams(searchParams.toString());
+    const q = value.trim();
+    if (q) params.set("q", q);
+    else params.delete("q");
+    const nextQuery = params.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -101,14 +126,32 @@ export default function OrderListPage() {
   }
 
   const columns: TableColumnProps<Order>[] = [
-    { title: "名称", dataIndex: "name" },
-    { title: "进货地", render: (_, row) => `${row.purchasePlace.place} / ${row.purchasePlace.marketName}` },
-    { title: "备注", render: (_, row) => row.desc ?? "—" },
+    { title: "名称", dataIndex: "name", width: 180 },
+    {
+      title: "进货地",
+      width: 240,
+      render: (_, row) => `${row.purchasePlace.place} / ${row.purchasePlace.marketName}`,
+    },
+    { title: "备注", width: 220, render: (_, row) => row.desc ?? "—" },
+    {
+      title: "创建时间",
+      dataIndex: "createdAt",
+      width: 170,
+      render: (_, row) => formatDateTime(row.createdAt),
+    },
+    {
+      title: "更新时间",
+      dataIndex: "updatedAt",
+      width: 170,
+      render: (_, row) => formatDateTime(row.updatedAt),
+    },
     {
       title: "操作",
+      fixed: "right",
+      width: 84,
       render: (_, row) => (
-        <Link href={`/order/list/${row.id}`} className="text-[#165dff] hover:underline">
-          查看详情
+        <Link href={`/order/list/${row.id}`} className="text-xs text-[#165dff] hover:underline">
+          详情
         </Link>
       ),
     },
@@ -118,16 +161,23 @@ export default function OrderListPage() {
     <Card
       title={<Typography.Title heading={6}>订单</Typography.Title>}
       extra={<Button type="primary" onClick={openCreate}>创建</Button>}
-      
     >
-      {error ? <Typography.Text type="danger">{error}</Typography.Text> : null}
+      {error ? <Typography.Text type="error">{error}</Typography.Text> : null}
+      <div className={error ? "my-3 max-w-md" : "mb-3 max-w-md"}>
+        <Input
+          allowClear
+          value={query}
+          onChange={handleQueryChange}
+          placeholder="搜索订单、进货地、市场名称或备注"
+        />
+      </div>
       <Table
-        style={{ marginTop: error ? 12 : 0 }}
         rowKey="id"
         loading={loading}
         columns={columns}
         data={items}
         pagination={{ pageSize: 10, showTotal: true }}
+        scroll={{ x: 1064 }}
         noDataElement="暂无订单"
       />
 
