@@ -31,6 +31,24 @@ type PurchasePlace = {
   marketName: string;
 };
 
+function optionMatches(inputValue: string, option: React.ReactElement) {
+  const props = option.props as { children?: React.ReactNode };
+  return String(props.children ?? "")
+    .toLowerCase()
+    .includes(inputValue.toLowerCase());
+}
+
+function purchasePlaceLabel(row: PurchasePlace) {
+  return `${row.place} / ${row.marketName}`;
+}
+
+function parsePurchasePlaceInput(value: string) {
+  const [placePart, ...marketParts] = value.split("/");
+  const place = placePart.trim();
+  const marketName = marketParts.join("/").trim() || place;
+  return { place, marketName };
+}
+
 export default function OrderListPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -94,18 +112,55 @@ export default function OrderListPage() {
     router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
   }
 
+  async function ensurePurchasePlaceId(value: string) {
+    const input = value.trim();
+    const existing = purchasePlaces.find(
+      (row) =>
+        row.id === input ||
+        purchasePlaceLabel(row).toLowerCase() === input.toLowerCase(),
+    );
+    if (existing) return existing.id;
+
+    const { place, marketName } = parsePurchasePlaceInput(input);
+    if (!place || !marketName) {
+      setError("进货地不能为空");
+      return null;
+    }
+    const res = await fetch("/api/purchase-places", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ place, marketName }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError((data as { error?: string }).error ?? "创建进货地失败");
+      return null;
+    }
+    const item = (data as { item: PurchasePlace }).item;
+    setPurchasePlaces((prev) => [item, ...prev]);
+    return item.id;
+  }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!purchasePlaceId) {
+    if (!purchasePlaceId.trim()) {
       setError("请选择进货地");
       return;
     }
+    const resolvedPurchasePlaceId = await ensurePurchasePlaceId(purchasePlaceId);
+    if (!resolvedPurchasePlaceId) return;
+
     const res = await fetch("/api/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ name, purchasePlaceId, desc: desc || undefined }),
+      body: JSON.stringify({
+        name,
+        purchasePlaceId: resolvedPurchasePlaceId,
+        desc: desc || undefined,
+      }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -221,9 +276,17 @@ export default function OrderListPage() {
           <label className="text-sm text-[#4e5969]">订单名称</label>
           <Input value={name} onChange={setName} placeholder="订单名称" required />
           <label className="text-sm text-[#4e5969]">进货地</label>
-          <Select placeholder="选择进货地" value={purchasePlaceId || undefined} onChange={(v) => setPurchasePlaceId(String(v))}>
+          <Select
+            allowCreate
+            data-testid="order-purchase-place-select"
+            filterOption={optionMatches}
+            placeholder="选择或输入进货地"
+            showSearch
+            value={purchasePlaceId || undefined}
+            onChange={(v) => setPurchasePlaceId(String(v))}
+          >
             {purchasePlaces.map((row) => (
-              <Select.Option key={row.id} value={row.id}>{row.place} / {row.marketName}</Select.Option>
+              <Select.Option key={row.id} value={row.id}>{purchasePlaceLabel(row)}</Select.Option>
             ))}
           </Select>
           <label className="text-sm text-[#4e5969]">备注（可选）</label>

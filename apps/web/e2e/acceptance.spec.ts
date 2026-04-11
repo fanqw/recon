@@ -103,6 +103,33 @@ async function rowTexts(page: Page) {
   );
 }
 
+async function chooseSelectOptionBySearch(
+  page: Page,
+  testId: string,
+  searchText: string,
+  optionText: string,
+) {
+  const select = page.getByTestId(testId);
+  await select.click();
+  await select.locator("input").fill(searchText);
+  const popup = page.locator(".arco-select-popup:not(.arco-select-popup-hidden)");
+  await expect(popup.getByText(optionText, { exact: true })).toBeVisible();
+  await popup.getByText(optionText, { exact: true }).click();
+}
+
+async function createSelectOptionByInput(
+  page: Page,
+  testId: string,
+  optionText: string,
+) {
+  const select = page.getByTestId(testId);
+  await select.click();
+  await select.locator("input").fill(optionText);
+  const popup = page.locator(".arco-select-popup:not(.arco-select-popup-hidden)");
+  await expect(popup.getByText(optionText, { exact: true })).toBeVisible();
+  await popup.getByText(optionText, { exact: true }).click();
+}
+
 /**
  * 未携带会话时访问受保护路由，中间件应重定向到登录页（可带 `from` 查询参数）。
  */
@@ -170,6 +197,105 @@ test("主导航各页可见且主按钮可点", async ({ page }) => {
     page.getByRole("heading", { name: "订单", exact: true })
   ).toBeVisible();
   await page.getByRole("button", { name: "创建" }).click();
+});
+
+test("新建商品弹窗分类与单位支持搜索和直接输入", async ({ page }) => {
+  await loginByApi(page);
+
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const existingCategory = `e2e-search-cat-${suffix}`;
+  const existingUnit = `e2e-search-unit-${suffix}`;
+  await createCategory(page, existingCategory, `e2e-search-cat-desc-${suffix}`);
+  await createUnit(page, existingUnit, `e2e-search-unit-desc-${suffix}`);
+
+  await page.goto("/basic/commodity");
+  await page.getByRole("button", { name: "新建" }).click();
+  const modal = page.locator(".arco-modal");
+  await modal.getByPlaceholder("名称", { exact: true }).fill(`e2e-search-commodity-${suffix}`);
+  await chooseSelectOptionBySearch(
+    page,
+    "commodity-category-select",
+    "search-cat",
+    existingCategory,
+  );
+  await chooseSelectOptionBySearch(
+    page,
+    "commodity-unit-select",
+    "search-unit",
+    existingUnit,
+  );
+  await Promise.all([
+    page.waitForResponse((res) => res.url().includes("/api/commodities") && res.request().method() === "POST"),
+    modal.getByRole("button", { name: "新建" }).click(),
+  ]);
+  await expect(modal).toBeHidden();
+  const searchedRow = page.locator("tr").filter({ hasText: `e2e-search-commodity-${suffix}` }).first();
+  await expect(searchedRow).toContainText(existingCategory);
+  await expect(searchedRow).toContainText(existingUnit);
+
+  const directCategory = `e2e-direct-cat-${suffix}`;
+  const directUnit = `e2e-direct-unit-${suffix}`;
+  await page.getByRole("button", { name: "新建" }).click();
+  const directModal = page.locator(".arco-modal");
+  await directModal.getByPlaceholder("名称", { exact: true }).fill(`e2e-direct-commodity-${suffix}`);
+  await createSelectOptionByInput(page, "commodity-category-select", directCategory);
+  await createSelectOptionByInput(page, "commodity-unit-select", directUnit);
+  await Promise.all([
+    page.waitForResponse((res) => res.url().includes("/api/commodities") && res.request().method() === "POST"),
+    directModal.getByRole("button", { name: "新建" }).click(),
+  ]);
+  const directRow = page.locator("tr").filter({ hasText: `e2e-direct-commodity-${suffix}` }).first();
+  await expect(directRow).toContainText(directCategory);
+  await expect(directRow).toContainText(directUnit);
+});
+
+test("新建订单弹窗进货地支持搜索和直接输入", async ({ page }) => {
+  await loginByApi(page);
+
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const existingPlace = `e2e-search-place-${suffix}`;
+  const existingMarket = `e2e-search-market-${suffix}`;
+  await createPurchasePlace(page, suffix, {
+    place: existingPlace,
+    marketName: existingMarket,
+  });
+
+  await page.goto("/order/list");
+  await page.getByRole("button", { name: "创建" }).click();
+  const modal = page.locator(".arco-modal");
+  await modal.getByPlaceholder("订单名称").fill(`e2e-search-order-${suffix}`);
+  await chooseSelectOptionBySearch(
+    page,
+    "order-purchase-place-select",
+    "search-market",
+    `${existingPlace} / ${existingMarket}`,
+  );
+  await Promise.all([
+    page.waitForResponse((res) => res.url().includes("/api/orders") && res.request().method() === "POST"),
+    modal.getByRole("button", { name: "创建" }).click(),
+  ]);
+  await expect(modal).toBeHidden();
+  const searchedRow = page.locator("tr").filter({ hasText: `e2e-search-order-${suffix}` }).first();
+  await expect(searchedRow).toContainText(existingPlace);
+  await expect(searchedRow).toContainText(existingMarket);
+
+  const directPlace = `e2e-direct-place-${suffix}`;
+  const directMarket = `e2e-direct-market-${suffix}`;
+  await page.getByRole("button", { name: "创建" }).click();
+  const directModal = page.locator(".arco-modal");
+  await directModal.getByPlaceholder("订单名称").fill(`e2e-direct-order-${suffix}`);
+  await createSelectOptionByInput(
+    page,
+    "order-purchase-place-select",
+    `${directPlace} / ${directMarket}`,
+  );
+  await Promise.all([
+    page.waitForResponse((res) => res.url().includes("/api/orders") && res.request().method() === "POST"),
+    directModal.getByRole("button", { name: "创建" }).click(),
+  ]);
+  const directRow = page.locator("tr").filter({ hasText: `e2e-direct-order-${suffix}` }).first();
+  await expect(directRow).toContainText(directPlace);
+  await expect(directRow).toContainText(directMarket);
 });
 
 /**

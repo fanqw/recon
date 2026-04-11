@@ -31,6 +31,13 @@ type Commodity = {
   updatedAt: string;
 };
 
+function optionMatches(inputValue: string, option: React.ReactElement) {
+  const props = option.props as { children?: React.ReactNode };
+  return String(props.children ?? "")
+    .toLowerCase()
+    .includes(inputValue.toLowerCase());
+}
+
 export default function CommodityPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -97,19 +104,76 @@ export default function CommodityPage() {
     router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
   }
 
+  async function ensureCategoryId(value: string) {
+    const input = value.trim();
+    const existing = categories.find(
+      (row) =>
+        row.id === input || row.name.trim().toLowerCase() === input.toLowerCase(),
+    );
+    if (existing) return existing.id;
+
+    const res = await fetch("/api/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ name: input }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError((data as { error?: string }).error ?? "创建分类失败");
+      return null;
+    }
+    const item = (data as { item: Category }).item;
+    setCategories((prev) => [item, ...prev]);
+    return item.id;
+  }
+
+  async function ensureUnitId(value: string) {
+    const input = value.trim();
+    const existing = units.find(
+      (row) =>
+        row.id === input || row.name.trim().toLowerCase() === input.toLowerCase(),
+    );
+    if (existing) return existing.id;
+
+    const res = await fetch("/api/units", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ name: input }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError((data as { error?: string }).error ?? "创建单位失败");
+      return null;
+    }
+    const item = (data as { item: Unit }).item;
+    setUnits((prev) => [item, ...prev]);
+    return item.id;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!categoryId || !unitId) {
+    if (!categoryId.trim() || !unitId.trim()) {
       setError("请选择分类与单位");
       return;
     }
+    const resolvedCategoryId = await ensureCategoryId(categoryId);
+    const resolvedUnitId = await ensureUnitId(unitId);
+    if (!resolvedCategoryId || !resolvedUnitId) return;
+
     if (editingId) {
       const res = await fetch(`/api/commodities/${editingId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ name, desc: desc || undefined, categoryId, unitId }),
+        body: JSON.stringify({
+          name,
+          desc: desc || undefined,
+          categoryId: resolvedCategoryId,
+          unitId: resolvedUnitId,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -121,7 +185,12 @@ export default function CommodityPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ name, desc: desc || undefined, categoryId, unitId }),
+        body: JSON.stringify({
+          name,
+          desc: desc || undefined,
+          categoryId: resolvedCategoryId,
+          unitId: resolvedUnitId,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -234,13 +303,29 @@ export default function CommodityPage() {
           <label className="text-sm text-[#4e5969]">名称</label>
           <Input value={name} onChange={setName} placeholder="名称" required />
           <label className="text-sm text-[#4e5969]">分类</label>
-          <Select placeholder="选择分类" value={categoryId || undefined} onChange={(v) => setCategoryId(String(v))}>
+          <Select
+            allowCreate
+            data-testid="commodity-category-select"
+            filterOption={optionMatches}
+            placeholder="选择或输入分类"
+            showSearch
+            value={categoryId || undefined}
+            onChange={(v) => setCategoryId(String(v))}
+          >
             {categories.map((c) => (
               <Select.Option key={c.id} value={c.id}>{c.name}</Select.Option>
             ))}
           </Select>
           <label className="text-sm text-[#4e5969]">单位</label>
-          <Select placeholder="选择单位" value={unitId || undefined} onChange={(v) => setUnitId(String(v))}>
+          <Select
+            allowCreate
+            data-testid="commodity-unit-select"
+            filterOption={optionMatches}
+            placeholder="选择或输入单位"
+            showSearch
+            value={unitId || undefined}
+            onChange={(v) => setUnitId(String(v))}
+          >
             {units.map((u) => (
               <Select.Option key={u.id} value={u.id}>{u.name}</Select.Option>
             ))}
