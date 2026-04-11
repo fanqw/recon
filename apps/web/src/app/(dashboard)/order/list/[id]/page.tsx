@@ -127,19 +127,19 @@ export default function OrderDetailPage() {
     if (commoditySel?.kind === "free") {
       if (!trimOrEmpty(commoditySel.text)) return "商品名称不能为空";
     } else {
-      return "请选择商品或输入名称并选择「使用当前输入」";
+      return "请选择商品或输入名称并选择当前输入选项";
     }
     if (categorySel?.kind === "id") return null;
     if (categorySel?.kind === "free") {
       if (!trimOrEmpty(categorySel.text)) return "分类名称不能为空";
     } else {
-      return "请选择分类或输入名称并选择「使用当前输入」";
+      return "请选择分类或输入名称并选择当前输入选项";
     }
     if (unitSel?.kind === "id") return null;
     if (unitSel?.kind === "free") {
       if (!trimOrEmpty(unitSel.text)) return "单位名称不能为空";
     } else {
-      return "请选择单位或输入名称并选择「使用当前输入」";
+      return "请选择单位或输入名称并选择当前输入选项";
     }
     return null;
   }

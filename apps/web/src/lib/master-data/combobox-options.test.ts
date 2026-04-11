@@ -17,7 +17,7 @@ describe("buildMasterDataComboboxOptions", () => {
     ]);
   });
 
-  it("无精确匹配时会在首位注入当前输入", () => {
+  it("无精确匹配时会在首位注入当前输入选项", () => {
     const options = buildMasterDataComboboxOptions({
       items: [{ id: "1", name: "苹果" }],
       query: " 梨 ",
@@ -37,7 +37,7 @@ describe("buildMasterDataComboboxOptions", () => {
     ]);
   });
 
-  it("精确匹配时不注入使用当前输入", () => {
+  it("精确匹配时不注入当前输入选项", () => {
     const options = buildMasterDataComboboxOptions({
       items: [{ id: "1", name: "  苹果  " }],
       query: "苹果",
