@@ -17,7 +17,7 @@ import {
 } from "@/lib/delete-block-codes";
 import { formatDateTime } from "@/lib/datetime";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Category = {
   id: string;
@@ -40,12 +40,15 @@ export default function CategoryPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const latestLoadSeq = useRef(0);
 
   useEffect(() => {
     setQuery(urlQuery);
   }, [urlQuery]);
 
   const loadList = useCallback(async () => {
+    const currentSeq = latestLoadSeq.current + 1;
+    latestLoadSeq.current = currentSeq;
     setLoading(true);
     setError(null);
     try {
@@ -53,13 +56,16 @@ export default function CategoryPage() {
       const url = q ? `/api/categories?q=${encodeURIComponent(q)}` : "/api/categories";
       const res = await fetch(url, { credentials: "include" });
       const data = await res.json();
+      if (currentSeq !== latestLoadSeq.current) return;
       if (!res.ok) {
         setError((data as { error?: string }).error ?? "加载失败");
         return;
       }
       setItems((data as { items: Category[] }).items ?? []);
     } finally {
-      setLoading(false);
+      if (currentSeq === latestLoadSeq.current) {
+        setLoading(false);
+      }
     }
   }, [query]);
 
