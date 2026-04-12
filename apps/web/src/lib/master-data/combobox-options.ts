@@ -31,7 +31,7 @@ export function buildMasterDataComboboxOptions({
   currentInputLabel = (value) => value,
 }: BuildMasterDataComboboxOptionsInput): MasterDataComboboxOption[] {
   const normalizedQuery = normalizeQuery(query);
-  const options = items.map((row) => ({
+  const options: MasterDataComboboxOption[] = items.map((row) => ({
     value: `id:${row.id}`,
     label: row.name,
     row,

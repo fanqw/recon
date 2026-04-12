@@ -7,6 +7,7 @@ import {
   Typography,
   type TableColumnProps,
 } from "@arco-design/web-react";
+import { ListTableEmptyState } from "@/components/list-table-empty";
 import {
   computeCategoryAmountRowSpans,
   computeCategoryRowSpans,
@@ -29,8 +30,8 @@ export function OrderDetailTable({ lines, onEdit, onDelete }: Props) {
 
   if (lines.length === 0) {
     return (
-      <div className="rounded-lg border border-[#e5e6eb] bg-white p-6 text-center">
-        <Typography.Text>暂无明细，请点击「新增明细」添加。</Typography.Text>
+      <div className="rounded-lg border border-[#e5e6eb] bg-[var(--surface)]">
+        <ListTableEmptyState message="暂无商品，请点击「新增商品」添加。" />
       </div>
     );
   }
@@ -49,11 +50,12 @@ export function OrderDetailTable({ lines, onEdit, onDelete }: Props) {
     { title: "单价", dataIndex: "price" },
     {
       title: "金额",
-      render: (_, row) => (
-        <Typography.Text type={row.line_total !== row.total_price ? "danger" : "default"}>
-          {row.line_total}
-        </Typography.Text>
-      ),
+      render: (_, row) =>
+        row.line_total !== row.total_price ? (
+          <Typography.Text type="error">{row.line_total}</Typography.Text>
+        ) : (
+          <Typography.Text>{row.line_total}</Typography.Text>
+        ),
     },
     { title: "备注", render: (_, row) => row.desc ?? "—" },
     {

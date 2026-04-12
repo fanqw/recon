@@ -29,19 +29,19 @@ async function main(): Promise<void> {
     prisma.purchasePlace.deleteMany({}),
   ]);
 
-  const [waterCategory, vegetableCategory, groceryCategory, meatCategory] =
+  const [fruitCategory, vegetableCategory, groceryCategory, meatCategory] =
     await Promise.all([
       prisma.category.create({
-        data: { name: "水", desc: "语义化样例：水果类" },
+        data: { name: "水果", desc: "语义化样例：水果类" },
       }),
       prisma.category.create({
-        data: { name: "蔬", desc: "语义化样例：蔬菜类" },
+        data: { name: "蔬菜", desc: "语义化样例：蔬菜类" },
       }),
       prisma.category.create({
-        data: { name: "副", desc: "语义化样例：副食类" },
+        data: { name: "副食", desc: "语义化样例：副食类" },
       }),
       prisma.category.create({
-        data: { name: "肉", desc: "语义化样例：肉类" },
+        data: { name: "肉类", desc: "语义化样例：肉类" },
       }),
     ]);
 
@@ -78,7 +78,7 @@ async function main(): Promise<void> {
     prisma.commodity.create({
       data: {
         name: "苹果",
-        categoryId: waterCategory.id,
+        categoryId: fruitCategory.id,
         unitId: jinUnit.id,
         desc: "语义化样例：水果",
       },

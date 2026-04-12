@@ -7,6 +7,7 @@ import {
   Modal,
   Typography,
 } from "@arco-design/web-react";
+import { ListTableEmptyState } from "@/components/list-table-empty";
 import {
   MasterDataCombobox,
   type MasterDataListItem,
@@ -264,7 +265,7 @@ export default function OrderDetailPage() {
   if (!order) {
     return (
       <Card >
-        <Typography.Text type="danger">{error ?? "订单不存在"}</Typography.Text>
+        <Typography.Text type="error">{error ?? "订单不存在"}</Typography.Text>
         <div className="mt-3">
           <Link href="/order/list">
             <Button>返回</Button>
@@ -302,12 +303,12 @@ export default function OrderDetailPage() {
             <Button onClick={() => void handleExportExcel()} loading={exporting} disabled={lines.length === 0}>导出 Excel</Button>
           </div>
         </div>
-        {error ? <Typography.Text type="danger" className="mt-2 block">{error}</Typography.Text> : null}
+        {error ? <Typography.Text type="error" className="mt-2 block">{error}</Typography.Text> : null}
       </Card>
 
       {lines.length === 0 ? (
-        <div className="rounded-lg border border-[#e5e6eb] bg-white p-6 text-center">
-          <Typography.Text>暂无商品，请点击「新增商品」添加。</Typography.Text>
+        <div className="rounded-lg border border-[#e5e6eb] bg-[var(--surface)]">
+          <ListTableEmptyState message="暂无商品，请点击「新增商品」添加。" />
         </div>
       ) : (
         <OrderDetailTable lines={lines} onEdit={startEditLine} onDelete={(id) => void removeLine(id)} />
@@ -319,14 +320,20 @@ export default function OrderDetailPage() {
           <MasterDataCombobox label="分类" apiPath="/api/categories" disabled={!!editingLineId} value={categorySel} onChange={setCategorySel} testId="order-line-category-select" />
           <MasterDataCombobox label="单位" apiPath="/api/units" disabled={!!editingLineId} value={unitSel} onChange={setUnitSel} testId="order-line-unit-select" />
 
-          <label className="text-sm text-[#4e5969]">数量</label>
-          <Input type="number" value={lineCount} onChange={setLineCount} required />
-          <label className="text-sm text-[#4e5969]">单价</label>
-          <Input type="number" value={linePrice} onChange={setLinePrice} required />
-          <label className="text-sm text-[#4e5969]">总金额</label>
-          <Input type="number" value={lineTotalInput} readOnly />
-          <label className="text-sm text-[#4e5969]">备注（可选）</label>
-          <Input value={lineDesc} onChange={setLineDesc} />
+          <label htmlFor="order-line-count" className="text-sm text-[#4e5969]">数量</label>
+          <Input id="order-line-count" type="number" value={lineCount} onChange={setLineCount} required />
+          <label htmlFor="order-line-price" className="text-sm text-[#4e5969]">单价</label>
+          <Input id="order-line-price" type="number" value={linePrice} onChange={setLinePrice} required />
+          <label htmlFor="order-line-total" className="text-sm text-[#4e5969]">总金额</label>
+          <Input id="order-line-total" type="number" value={lineTotalInput} readOnly />
+          <label htmlFor="order-line-desc" className="text-sm text-[#4e5969]">备注（可选）</label>
+          <Input.TextArea
+            id="order-line-desc"
+            value={lineDesc}
+            onChange={setLineDesc}
+            placeholder="请输入备注"
+            rows={3}
+          />
           <div className="flex justify-end gap-2">
             <Button onClick={() => setLineModalOpen(false)}>取消</Button>
             <Button htmlType="submit" type="primary">{editingLineId ? "保存商品" : "添加商品"}</Button>

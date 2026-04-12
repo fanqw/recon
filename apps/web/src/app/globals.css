@@ -87,3 +87,67 @@ body[arco-theme="dark"] .dashboard-breadcrumb a {
 .arco-card {
   border-radius: 10px;
 }
+
+.login-shell {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  background: linear-gradient(165deg, var(--surface-soft) 0%, var(--background) 45%);
+}
+
+.login-hero {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+  color: var(--foreground);
+}
+
+.login-hero h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.login-hero p {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.login-form-panel {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+@media (min-width: 900px) {
+  .login-shell {
+    flex-direction: row;
+  }
+
+  .login-hero {
+    padding: 3rem 3.5rem;
+  }
+
+  .login-form-panel {
+    flex: 0 0 min(480px, 42vw);
+    border-left: 1px solid var(--border);
+  }
+}
+
+@media (max-width: 1024px) {
+  .arco-table {
+    font-size: 13px;
+  }
+
+  .arco-modal {
+    max-height: 90vh;
+  }
+}

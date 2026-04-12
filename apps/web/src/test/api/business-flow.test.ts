@@ -66,7 +66,7 @@ describe("主数据与订单 API 最小成功路径", () => {
     };
 
     expect(categoriesBody.items.map((item) => item.name)).toEqual(
-      expect.arrayContaining(["水", "蔬", "副", "肉"]),
+      expect.arrayContaining(["水果", "蔬菜", "副食", "肉类"]),
     );
     expect(unitsBody.items.map((item) => item.name)).toEqual(
       expect.arrayContaining(["斤", "件", "箱"]),

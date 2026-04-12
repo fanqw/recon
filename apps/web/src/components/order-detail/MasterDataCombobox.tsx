@@ -47,8 +47,15 @@ export function MasterDataCombobox({
           const q = query.trim();
           const url = q.length > 0 ? `${apiPath}?q=${encodeURIComponent(q)}` : apiPath;
           const res = await fetch(url, { credentials: "include" });
+          // 非 2xx 或 JSON 解析失败时清空候选，避免把错误页/HTML 当成列表数据
+          if (!res.ok) {
+            setItems([]);
+            return;
+          }
           const data = (await res.json()) as { items?: MasterDataListItem[] };
           setItems(Array.isArray(data.items) ? data.items : []);
+        } catch {
+          setItems([]);
         } finally {
           setLoading(false);
         }
@@ -72,6 +79,12 @@ export function MasterDataCombobox({
     });
   }, [items, query]);
 
+  /** 使用 `options` 数据驱动，避免 Arco 对 `Select.Option` 子节点 `cloneElement` 触发 React 19 的 element.ref 弃用警告 */
+  const selectOptions = useMemo(
+    () => options.map((opt) => ({ label: opt.label, value: opt.value })),
+    [options],
+  );
+
   return (
     <div className="flex flex-col gap-1">
       <label className="text-sm text-[#4e5969]">{label}</label>
@@ -81,6 +94,7 @@ export function MasterDataCombobox({
         disabled={disabled}
         filterOption={false}
         loading={loading}
+        options={selectOptions}
         placeholder={placeholder}
         data-testid={testId}
         value={selectedValue}
@@ -105,13 +119,7 @@ export function MasterDataCombobox({
             onChange({ kind: "free", text: s.slice(5) });
           }
         }}
-      >
-        {options.map((opt) => (
-          <Select.Option key={opt.value} value={opt.value}>
-            {opt.label}
-          </Select.Option>
-        ))}
-      </Select>
+      />
     </div>
   );
 }

@@ -11,10 +11,11 @@ import {
   Typography,
   type TableColumnProps,
 } from "@arco-design/web-react";
+import { ListTableEmptyState } from "@/components/list-table-empty";
 import { formatDateTime } from "@/lib/datetime";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Order = {
   id: string;
@@ -89,6 +90,16 @@ export default function OrderListPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  /** `options` 数据驱动，避免 Select.Option 子节点在 React 19 下触发 element.ref 弃用警告 */
+  const purchasePlaceSelectOptions = useMemo(
+    () =>
+      purchasePlaces.map((row) => ({
+        label: purchasePlaceLabel(row),
+        value: row.id,
+      })),
+    [purchasePlaces],
+  );
 
   useEffect(() => {
     setQuery(urlQuery);
@@ -296,29 +307,26 @@ export default function OrderListPage() {
         data={items}
         pagination={{ pageSize: 10, showTotal: true }}
         scroll={{ x: 1112 }}
-        noDataElement="暂无订单"
+        noDataElement={<ListTableEmptyState />}
       />
 
       <Modal title="新建订单" visible={createOpen} onCancel={() => setCreateOpen(false)} footer={null}>
         <form onSubmit={handleCreate} className="flex flex-col gap-3">
           <label className="text-sm text-[#4e5969]">订单名称</label>
-          <Input value={name} onChange={setName} placeholder="订单名称" required />
+          <Input value={name} onChange={setName} placeholder="请输入订单名称" required />
           <label className="text-sm text-[#4e5969]">进货地</label>
           <Select
             allowCreate
             data-testid="order-purchase-place-select"
             filterOption={optionMatches}
-            placeholder="选择或输入进货地 / 市场名称"
+            options={purchasePlaceSelectOptions}
+            placeholder="请选择或输入进货地 / 市场名称"
             showSearch
             value={purchasePlaceId || undefined}
             onChange={(v) => setPurchasePlaceId(String(v))}
-          >
-            {purchasePlaces.map((row) => (
-              <Select.Option key={row.id} value={row.id}>{purchasePlaceLabel(row)}</Select.Option>
-            ))}
-          </Select>
+          />
           <label className="text-sm text-[#4e5969]">备注（可选）</label>
-          <Input value={desc} onChange={setDesc} placeholder="备注（可选）" />
+          <Input.TextArea value={desc} onChange={setDesc} placeholder="请输入备注" rows={3} />
           <div className="flex justify-end gap-2">
             <Button onClick={() => setCreateOpen(false)}>取消</Button>
             <Button htmlType="submit" type="primary">创建</Button>

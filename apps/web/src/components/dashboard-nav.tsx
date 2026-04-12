@@ -56,6 +56,9 @@ function isGroup(entry: WorkspaceNavEntry): entry is Extract<WorkspaceNavEntry, 
   return "children" in entry;
 }
 
+/**
+ * 工作区侧栏：Arco `Menu` 分组与路由跳转（与 v1 分组一致）。
+ */
 export function DashboardNav() {
   const router = useRouter();
   const pathname = usePathname();
@@ -99,7 +102,7 @@ export function DashboardNav() {
               </Menu.SubMenu>
             ) : (
               <Menu.Item key={entry.key}>{menuLabel(entry)}</Menu.Item>
-            )
+            ),
           )}
         </Menu>
       </nav>

@@ -11,13 +11,14 @@ import {
   Typography,
   type TableColumnProps,
 } from "@arco-design/web-react";
+import { ListTableEmptyState } from "@/components/list-table-empty";
 import {
   isDeleteBlockCode,
   messageForDeleteBlockCode,
 } from "@/lib/delete-block-codes";
 import { formatDateTime } from "@/lib/datetime";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Category = { id: string; name: string };
 type Unit = { id: string; name: string };
@@ -69,6 +70,16 @@ export default function CommodityPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /** `options` 数据驱动，避免 Select.Option 子节点在 React 19 下触发 element.ref 弃用警告 */
+  const categorySelectOptions = useMemo(
+    () => categories.map((c) => ({ label: c.name, value: c.id })),
+    [categories],
+  );
+  const unitSelectOptions = useMemo(
+    () => units.map((u) => ({ label: u.name, value: u.id })),
+    [units],
+  );
 
   useEffect(() => {
     setQuery(urlQuery);
@@ -328,43 +339,37 @@ export default function CommodityPage() {
         data={items}
         pagination={{ pageSize: 10, showTotal: true }}
         scroll={{ x: 1096 }}
-        noDataElement="暂无数据"
+        noDataElement={<ListTableEmptyState />}
       />
 
       <Modal title={editingId ? "编辑商品" : "新建商品"} visible={modalOpen} onCancel={() => setModalOpen(false)} footer={null}>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <label className="text-sm text-[#4e5969]">名称</label>
-          <Input value={name} onChange={setName} placeholder="名称" required />
+          <Input value={name} onChange={setName} placeholder="请输入商品名称" required />
           <label className="text-sm text-[#4e5969]">分类</label>
           <Select
             allowCreate
             data-testid="commodity-category-select"
             filterOption={optionMatches}
-            placeholder="选择或输入分类"
+            options={categorySelectOptions}
+            placeholder="请选择或输入分类"
             showSearch
             value={categoryId || undefined}
             onChange={(v) => setCategoryId(String(v))}
-          >
-            {categories.map((c) => (
-              <Select.Option key={c.id} value={c.id}>{c.name}</Select.Option>
-            ))}
-          </Select>
+          />
           <label className="text-sm text-[#4e5969]">单位</label>
           <Select
             allowCreate
             data-testid="commodity-unit-select"
             filterOption={optionMatches}
-            placeholder="选择或输入单位"
+            options={unitSelectOptions}
+            placeholder="请选择或输入单位"
             showSearch
             value={unitId || undefined}
             onChange={(v) => setUnitId(String(v))}
-          >
-            {units.map((u) => (
-              <Select.Option key={u.id} value={u.id}>{u.name}</Select.Option>
-            ))}
-          </Select>
+          />
           <label className="text-sm text-[#4e5969]">备注（可选）</label>
-          <Input value={desc} onChange={setDesc} placeholder="备注（可选）" />
+          <Input.TextArea value={desc} onChange={setDesc} placeholder="请输入备注" rows={3} />
           <div className="flex justify-end gap-2">
             <Button onClick={() => setModalOpen(false)}>取消</Button>
             <Button htmlType="submit" type="primary">{editingId ? "保存" : "新建"}</Button>

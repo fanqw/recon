@@ -38,15 +38,15 @@ export function LoginClient() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <Card style={{ width: 380 }}>
+    <div className="w-full max-w-[380px]">
+      <Card className="w-full">
         <Typography.Title heading={5}>recon 登录</Typography.Title>
         <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3">
           <label className="text-sm text-[#4e5969]">用户名</label>
           <Input name="username" autoComplete="username" aria-label="用户名" required />
           <label className="text-sm text-[#4e5969]">密码</label>
           <Input.Password name="password" autoComplete="current-password" aria-label="密码" required />
-          {error ? <Typography.Text type="danger">{error}</Typography.Text> : null}
+          {error ? <Typography.Text type="error">{error}</Typography.Text> : null}
           <Button htmlType="submit" type="primary" loading={loading}>
             {loading ? "登录中…" : "登录"}
           </Button>

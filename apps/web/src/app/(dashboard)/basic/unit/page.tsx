@@ -10,6 +10,7 @@ import {
   Typography,
   type TableColumnProps,
 } from "@arco-design/web-react";
+import { ListTableEmptyState } from "@/components/list-table-empty";
 import {
   isDeleteBlockCode,
   messageForDeleteBlockCode,
@@ -193,14 +194,14 @@ export default function UnitPage() {
         data={items}
         pagination={{ pageSize: 10, showTotal: true }}
         scroll={{ x: 856 }}
-        noDataElement="暂无数据"
+        noDataElement={<ListTableEmptyState />}
       />
       <Modal title={editingId ? "编辑单位" : "新建单位"} visible={modalOpen} onCancel={() => setModalOpen(false)} footer={null}>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <label className="text-sm text-[#4e5969]">名称</label>
-          <Input value={name} onChange={setName} placeholder="名称" required />
+          <Input value={name} onChange={setName} placeholder="请输入单位名称" required />
           <label className="text-sm text-[#4e5969]">备注（可选）</label>
-          <Input value={desc} onChange={setDesc} placeholder="备注（可选）" />
+          <Input.TextArea value={desc} onChange={setDesc} placeholder="请输入备注" rows={3} />
           <div className="flex justify-end gap-2">
             <Button onClick={() => setModalOpen(false)}>取消</Button>
             <Button htmlType="submit" type="primary">{editingId ? "保存" : "新建"}</Button>
