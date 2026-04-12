@@ -83,3 +83,37 @@ Pull Request 应至少包含：
 ## 文档维护要求
 
 新增或变更目录结构、环境变量、开发/构建/部署命令时，应同步更新 `README.md`，使新贡献者无需通读源码即可上手。若技术栈、全栈架构边界或 v1 与 recon（v2）边界说明有变，应同时更新本文件。
+
+
+<!-- BEGIN OPENSPEC_SUPERPOWERS_WORKFLOW -->
+## OpenSpec + Superpowers 融合工作流
+
+### 项目特定规则
+- OpenSpec 是单一事实源：`openspec/`。
+- 当前变更目录：`openspec/changes/<change-name>/`。
+- 增量规范目录：`openspec/changes/<change-name>/specs/`。
+- 唯一任务清单：`openspec/changes/<change-name>/tasks.md`。
+- 归档目录：`openspec/changes/archive/`。
+
+### Codex workflow 命令
+- `/workflow:plan` - 需求澄清并生成 OpenSpec change 工件。
+- `/workflow:refine` - 细化 `tasks.md` 为原子子任务。
+- `/workflow:develop` - 串行执行原子子任务。
+- `/workflow:develop --parallel` - 并行执行无依赖原子子任务。
+- `/workflow:validate` - 测试、实现一致性检查和 `openspec validate`。
+- `/workflow:review` - 发起代码审查。
+- `/workflow:review --feedback` - 处理审查反馈。
+- `/workflow:debug` - 系统化调试。
+- `/workflow:update-tasks` - 规格变化后同步任务。
+- `/workflow:archive` - 验证后归档。
+
+### 底层 OpenSpec CLI
+- `openspec new change <change-name>` - 创建 change。
+- `openspec status --change <change-name>` - 查看 artifact 状态。
+- `openspec instructions <artifact-id> --change <change-name>` - 获取 artifact 写作指令。
+- `openspec validate <change-name> --type change --strict` - 校验 change。
+- `openspec archive <change-name>` - 归档 change。
+
+### Superpowers 使用方式
+Superpowers 是 Codex workflow 的流程纪律，不是 shell 命令。需要使用对应技能原则：`brainstorming`、`writing-plans`、`test-driven-development`、`subagent-driven-development`、`dispatching-parallel-agents`、`systematic-debugging`、`requesting-code-review`、`receiving-code-review`、`verification-before-completion`。
+<!-- END OPENSPEC_SUPERPOWERS_WORKFLOW -->
