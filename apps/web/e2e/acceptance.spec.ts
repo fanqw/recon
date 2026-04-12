@@ -130,6 +130,35 @@ async function createSelectOptionByInput(
   await popup.getByText(optionText, { exact: true }).click();
 }
 
+async function withFirstGetResponseHidden(
+  page: Page,
+  urlPart: string,
+  hiddenTexts: string[],
+) {
+  let hidden = false;
+  await page.route(`**${urlPart}`, async (route) => {
+    const request = route.request();
+    if (request.method() !== "GET" || hidden) {
+      await route.fallback();
+      return;
+    }
+
+    hidden = true;
+    const response = await route.fetch();
+    const body = (await response.json()) as { items?: unknown[] };
+    await route.fulfill({
+      response,
+      json: {
+        ...body,
+        items: (body.items ?? []).filter((item) => {
+          const text = JSON.stringify(item);
+          return hiddenTexts.every((hiddenText) => !text.includes(hiddenText));
+        }),
+      },
+    });
+  });
+}
+
 /**
  * 未携带会话时访问受保护路由，中间件应重定向到登录页（可带 `from` 查询参数）。
  */
@@ -296,6 +325,86 @@ test("新建订单弹窗进货地支持搜索和直接输入", async ({ page }) 
   const directRow = page.locator("tr").filter({ hasText: `e2e-direct-order-${suffix}` }).first();
   await expect(directRow).toContainText(directPlace);
   await expect(directRow).toContainText(directMarket);
+});
+
+test("新建订单弹窗进货地直接输入缺少分隔符时提示且不提交", async ({ page }) => {
+  await loginByApi(page);
+
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const orderName = `e2e-invalid-place-order-${suffix}`;
+  await page.goto("/order/list");
+  await page.getByRole("button", { name: "创建" }).click();
+  const modal = page.locator(".arco-modal");
+  await modal.getByPlaceholder("订单名称").fill(orderName);
+  await createSelectOptionByInput(
+    page,
+    "order-purchase-place-select",
+    `e2e-invalid-place-${suffix}`,
+  );
+  await modal.getByRole("button", { name: "创建" }).click();
+
+  await expect(page.getByText("请输入“进货地 / 市场名称”格式")).toBeVisible();
+  await expect(modal).toBeVisible();
+  await expect(page.getByText(orderName)).toHaveCount(0);
+});
+
+test("新建商品弹窗主数据创建 409 后刷新并复用已有项", async ({ page }) => {
+  await loginByApi(page);
+
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const categoryName = `e2e-race-cat-${suffix}`;
+  const unitName = `e2e-race-unit-${suffix}`;
+  await withFirstGetResponseHidden(page, "/api/categories", [categoryName]);
+  await withFirstGetResponseHidden(page, "/api/units", [unitName]);
+
+  await page.goto("/basic/commodity");
+  await page.getByRole("button", { name: "新建" }).click();
+  await createCategory(page, categoryName, `e2e-race-cat-desc-${suffix}`);
+  await createUnit(page, unitName, `e2e-race-unit-desc-${suffix}`);
+
+  const commodityName = `e2e-race-commodity-${suffix}`;
+  const modal = page.locator(".arco-modal");
+  await modal.getByPlaceholder("名称", { exact: true }).fill(commodityName);
+  await createSelectOptionByInput(page, "commodity-category-select", categoryName);
+  await createSelectOptionByInput(page, "commodity-unit-select", unitName);
+  await Promise.all([
+    page.waitForResponse((res) => res.url().includes("/api/commodities") && res.request().method() === "POST"),
+    modal.getByRole("button", { name: "新建" }).click(),
+  ]);
+
+  const row = page.locator("tr").filter({ hasText: commodityName }).first();
+  await expect(row).toContainText(categoryName);
+  await expect(row).toContainText(unitName);
+});
+
+test("新建订单弹窗进货地创建 409 后刷新并复用已有项", async ({ page }) => {
+  await loginByApi(page);
+
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const place = `e2e-race-place-${suffix}`;
+  const market = `e2e-race-market-${suffix}`;
+  await withFirstGetResponseHidden(page, "/api/purchase-places", [place, market]);
+
+  await page.goto("/order/list");
+  await page.getByRole("button", { name: "创建" }).click();
+  await createPurchasePlace(page, suffix, { place, marketName: market });
+
+  const orderName = `e2e-race-order-${suffix}`;
+  const modal = page.locator(".arco-modal");
+  await modal.getByPlaceholder("订单名称").fill(orderName);
+  await createSelectOptionByInput(
+    page,
+    "order-purchase-place-select",
+    `${place} / ${market}`,
+  );
+  await Promise.all([
+    page.waitForResponse((res) => res.url().includes("/api/orders") && res.request().method() === "POST"),
+    modal.getByRole("button", { name: "创建" }).click(),
+  ]);
+
+  const row = page.locator("tr").filter({ hasText: orderName }).first();
+  await expect(row).toContainText(place);
+  await expect(row).toContainText(market);
 });
 
 /**

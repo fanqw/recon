@@ -38,6 +38,20 @@ function optionMatches(inputValue: string, option: React.ReactElement) {
     .includes(inputValue.toLowerCase());
 }
 
+function sameText(a: string, b: string) {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+function findCategory(rows: Category[], value: string) {
+  const input = value.trim();
+  return rows.find((row) => row.id === input || sameText(row.name, input));
+}
+
+function findUnit(rows: Unit[], value: string) {
+  const input = value.trim();
+  return rows.find((row) => row.id === input || sameText(row.name, input));
+}
+
 export default function CommodityPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -60,16 +74,31 @@ export default function CommodityPage() {
     setQuery(urlQuery);
   }, [urlQuery]);
 
+  const loadCategories = useCallback(async () => {
+    const res = await fetch("/api/categories", { credentials: "include" });
+    const data = await res.json();
+    if (!res.ok) return null;
+    const rows = (data as { items: Category[] }).items ?? [];
+    setCategories(rows);
+    return rows;
+  }, []);
+
+  const loadUnits = useCallback(async () => {
+    const res = await fetch("/api/units", { credentials: "include" });
+    const data = await res.json();
+    if (!res.ok) return null;
+    const rows = (data as { items: Unit[] }).items ?? [];
+    setUnits(rows);
+    return rows;
+  }, []);
+
   const loadMasters = useCallback(async () => {
     const [cRes, uRes] = await Promise.all([
-      fetch("/api/categories", { credentials: "include" }),
-      fetch("/api/units", { credentials: "include" }),
+      loadCategories(),
+      loadUnits(),
     ]);
-    const cData = await cRes.json();
-    const uData = await uRes.json();
-    if (cRes.ok) setCategories((cData as { items: Category[] }).items ?? []);
-    if (uRes.ok) setUnits((uData as { items: Unit[] }).items ?? []);
-  }, []);
+    return { categories: cRes, units: uRes };
+  }, [loadCategories, loadUnits]);
 
   const loadList = useCallback(async () => {
     setLoading(true);
@@ -106,10 +135,7 @@ export default function CommodityPage() {
 
   async function ensureCategoryId(value: string) {
     const input = value.trim();
-    const existing = categories.find(
-      (row) =>
-        row.id === input || row.name.trim().toLowerCase() === input.toLowerCase(),
-    );
+    const existing = findCategory(categories, input);
     if (existing) return existing.id;
 
     const res = await fetch("/api/categories", {
@@ -120,6 +146,11 @@ export default function CommodityPage() {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
+      if (res.status === 409) {
+        const latest = await loadCategories();
+        const matched = latest ? findCategory(latest, input) : undefined;
+        if (matched) return matched.id;
+      }
       setError((data as { error?: string }).error ?? "创建分类失败");
       return null;
     }
@@ -130,10 +161,7 @@ export default function CommodityPage() {
 
   async function ensureUnitId(value: string) {
     const input = value.trim();
-    const existing = units.find(
-      (row) =>
-        row.id === input || row.name.trim().toLowerCase() === input.toLowerCase(),
-    );
+    const existing = findUnit(units, input);
     if (existing) return existing.id;
 
     const res = await fetch("/api/units", {
@@ -144,6 +172,11 @@ export default function CommodityPage() {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
+      if (res.status === 409) {
+        const latest = await loadUnits();
+        const matched = latest ? findUnit(latest, input) : undefined;
+        if (matched) return matched.id;
+      }
       setError((data as { error?: string }).error ?? "创建单位失败");
       return null;
     }

@@ -45,8 +45,19 @@ function purchasePlaceLabel(row: PurchasePlace) {
 function parsePurchasePlaceInput(value: string) {
   const [placePart, ...marketParts] = value.split("/");
   const place = placePart.trim();
-  const marketName = marketParts.join("/").trim() || place;
-  return { place, marketName };
+  const marketName = marketParts.join("/").trim();
+  return { place, marketName, valid: value.includes("/") && Boolean(place && marketName) };
+}
+
+function sameText(a: string, b: string) {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+function findPurchasePlace(rows: PurchasePlace[], value: string) {
+  const input = value.trim();
+  return rows.find(
+    (row) => row.id === input || sameText(purchasePlaceLabel(row), input),
+  );
 }
 
 export default function OrderListPage() {
@@ -94,7 +105,9 @@ export default function OrderListPage() {
       setError((data as { error?: string }).error ?? "加载进货地失败");
       return;
     }
-    setPurchasePlaces((data as { items: PurchasePlace[] }).items ?? []);
+    const rows = (data as { items: PurchasePlace[] }).items ?? [];
+    setPurchasePlaces(rows);
+    return rows;
   }, []);
 
   useEffect(() => {
@@ -114,16 +127,12 @@ export default function OrderListPage() {
 
   async function ensurePurchasePlaceId(value: string) {
     const input = value.trim();
-    const existing = purchasePlaces.find(
-      (row) =>
-        row.id === input ||
-        purchasePlaceLabel(row).toLowerCase() === input.toLowerCase(),
-    );
+    const existing = findPurchasePlace(purchasePlaces, input);
     if (existing) return existing.id;
 
-    const { place, marketName } = parsePurchasePlaceInput(input);
-    if (!place || !marketName) {
-      setError("进货地不能为空");
+    const { place, marketName, valid } = parsePurchasePlaceInput(input);
+    if (!valid) {
+      setError("请输入“进货地 / 市场名称”格式");
       return null;
     }
     const res = await fetch("/api/purchase-places", {
@@ -134,6 +143,11 @@ export default function OrderListPage() {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
+      if (res.status === 409) {
+        const latest = await loadPurchasePlaces();
+        const matched = latest ? findPurchasePlace(latest, input) : undefined;
+        if (matched) return matched.id;
+      }
       setError((data as { error?: string }).error ?? "创建进货地失败");
       return null;
     }
@@ -280,7 +294,7 @@ export default function OrderListPage() {
             allowCreate
             data-testid="order-purchase-place-select"
             filterOption={optionMatches}
-            placeholder="选择或输入进货地"
+            placeholder="选择或输入进货地 / 市场名称"
             showSearch
             value={purchasePlaceId || undefined}
             onChange={(v) => setPurchasePlaceId(String(v))}
