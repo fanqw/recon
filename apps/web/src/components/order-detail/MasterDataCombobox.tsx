@@ -22,6 +22,7 @@ type Props = {
   onChange: (v: MasterDataSelection) => void;
   onPickCommodity?: (row: MasterDataListItem) => void;
   placeholder?: string;
+  testId?: string;
 };
 
 export function MasterDataCombobox({
@@ -32,6 +33,7 @@ export function MasterDataCombobox({
   onChange,
   onPickCommodity,
   placeholder = "输入关键字搜索或选择",
+  testId,
 }: Props) {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -58,6 +60,10 @@ export function MasterDataCombobox({
   const selectedValue =
     value?.kind === "id" ? `id:${value.id}` : value?.kind === "free" ? `free:${value.text}` : undefined;
 
+  function handleSearchInput(nextQuery: string) {
+    setQuery(nextQuery);
+  }
+
   const options = useMemo(() => {
     return buildMasterDataComboboxOptions({
       items,
@@ -73,10 +79,13 @@ export function MasterDataCombobox({
         showSearch
         allowClear
         disabled={disabled}
+        filterOption={false}
         loading={loading}
         placeholder={placeholder}
+        data-testid={testId}
         value={selectedValue}
-        onSearch={setQuery}
+        onSearch={handleSearchInput}
+        onInputValueChange={handleSearchInput}
         onChange={(v) => {
           const s = String(v ?? "");
           if (!s) {

@@ -130,6 +130,21 @@ async function createSelectOptionByInput(
   await popup.getByText(optionText, { exact: true }).click();
 }
 
+async function chooseAsyncSelectOptionBySearch(
+  page: Page,
+  testId: string,
+  searchText: string,
+  optionText: string,
+) {
+  const select = page.getByTestId(testId);
+  await select.click();
+  await select.locator("input").fill("");
+  await select.locator("input").pressSequentially(searchText);
+  const popup = page.locator(".arco-select-popup:not(.arco-select-popup-hidden)");
+  await expect(popup.getByText(optionText, { exact: true })).toBeVisible();
+  await popup.getByText(optionText, { exact: true }).click();
+}
+
 async function withFirstGetResponseHidden(
   page: Page,
   urlPart: string,
@@ -498,7 +513,7 @@ test("订单删除入口迁移到列表并在删除后刷新移除", async ({ pa
   await expect(
     page.getByRole("button", { name: "删除订单" })
   ).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "新增明细" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "新增商品" })).toBeVisible();
   await expect(page.getByRole("button", { name: "导出 Excel" })).toBeVisible();
 
   await page.goto(`/order/list?q=${encodeURIComponent(orderName)}`);
@@ -815,10 +830,10 @@ test("订单详情紧凑信息区首屏保留明细与主操作", async ({ page 
   expect(lineRes.ok()).toBeTruthy();
 
   await page.goto(`/order/list/${orderId}`);
-  await expect(page.getByText(`订单：${orderName}`)).toBeVisible();
+  await expect(page.getByText(`订单名：${orderName}`)).toBeVisible();
   await expect(page.getByText("进货地：")).toBeVisible();
   await expect(page.getByText("备注：")).toBeVisible();
-  await expect(page.getByRole("button", { name: "新增明细" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "新增商品" })).toBeVisible();
   await expect(page.getByRole("button", { name: "导出 Excel" })).toBeVisible();
   await expect(page.locator("thead")).toContainText("分类");
   await expect(page.locator("tbody")).toContainText(commodity.name);
@@ -837,4 +852,84 @@ test("订单详情紧凑信息区首屏保留明细与主操作", async ({ page 
   expect(metrics.detailCardHeight).toBeLessThanOrEqual(180);
   expect(metrics.tableTop).toBeGreaterThan(0);
   expect(metrics.tableTop).toBeLessThan(metrics.viewportHeight * 0.7);
+});
+
+test("订单详情新增商品弹窗商品优先并自动计算总金额", async ({ page }) => {
+  await loginByApi(page);
+
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const categoryId = await createCategory(
+    page,
+    `e2e-line-cat-${suffix}`,
+    `e2e-line-cat-desc-${suffix}`,
+  );
+  const unitId = await createUnit(
+    page,
+    `e2e-line-unit-${suffix}`,
+    `e2e-line-unit-desc-${suffix}`,
+  );
+  const commodityName = `e2e-line-commodity-${suffix}`;
+  await createCommodity(page, {
+    name: commodityName,
+    desc: `e2e-line-commodity-desc-${suffix}`,
+    categoryId,
+    unitId,
+  });
+  const purchasePlaceId = await createPurchasePlace(page, suffix, {
+    place: `e2e-line-place-${suffix}`,
+    marketName: `e2e-line-market-${suffix}`,
+  });
+  const orderName = `e2e-line-order-${suffix}`;
+  const orderId = await createOrder(page, suffix, purchasePlaceId, {
+    name: orderName,
+    desc: `e2e-line-order-remark-${suffix}`,
+  });
+
+  await page.goto(`/order/list/${orderId}`);
+  await expect(page.getByText(`订单名：${orderName}`)).toBeVisible();
+  await expect(page.getByRole("button", { name: "返回" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "新增商品" })).toBeVisible();
+  await expect(page.getByText("返回订单列表")).toHaveCount(0);
+  await expect(page.getByText("新增明细")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "新增商品" }).click();
+  const modal = page.locator(".arco-modal");
+  await expect(modal.locator(".arco-modal-title")).toHaveText("新增商品");
+  await expect(page.getByText("与计算值")).toHaveCount(0);
+
+  const labels = await modal.locator("label").evaluateAll((nodes) =>
+    nodes.map((node) => (node.textContent ?? "").trim()).filter(Boolean),
+  );
+  expect(labels.slice(0, 6)).toEqual([
+    "商品",
+    "分类",
+    "单位",
+    "数量",
+    "单价",
+    "总金额",
+  ]);
+
+  await chooseAsyncSelectOptionBySearch(
+    page,
+    "order-line-commodity-select",
+    commodityName,
+    commodityName,
+  );
+  const numberInputs = modal.locator('input[type="number"]');
+  await numberInputs.nth(0).fill("3");
+  await numberInputs.nth(1).fill("1.335");
+  await expect(numberInputs.nth(2)).toHaveValue("4.01");
+
+  await Promise.all([
+    page.waitForResponse(
+      (res) =>
+        res.url().includes("/api/order-lines") &&
+        res.request().method() === "POST",
+    ),
+    modal.getByRole("button", { name: "添加商品" }).click(),
+  ]);
+
+  const row = page.locator("tr").filter({ hasText: commodityName }).first();
+  await expect(row).toContainText("3");
+  await expect(row).toContainText("4.01");
 });

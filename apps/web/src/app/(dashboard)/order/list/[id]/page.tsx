@@ -38,7 +38,13 @@ function trimOrEmpty(s: string): string {
 
 function defaultLineTotalNum(count: number, price: number): number {
   if (!Number.isFinite(count) || !Number.isFinite(price)) return 0;
-  return Math.round(price * count);
+  const rounded = Math.round((price * count + Number.EPSILON) * 100) / 100;
+  return Number(rounded.toFixed(2));
+}
+
+function formatLineTotal(value: number): string {
+  if (!Number.isFinite(value)) return "";
+  return String(value);
 }
 
 export default function OrderDetailPage() {
@@ -57,7 +63,6 @@ export default function OrderDetailPage() {
   const [lineCount, setLineCount] = useState("");
   const [linePrice, setLinePrice] = useState("");
   const [lineTotalInput, setLineTotalInput] = useState("");
-  const [lineTotalTouched, setLineTotalTouched] = useState(false);
   const [lineDesc, setLineDesc] = useState("");
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
   const [lineModalOpen, setLineModalOpen] = useState(false);
@@ -101,14 +106,12 @@ export default function OrderDetailPage() {
   const autoTotal = defaultLineTotalNum(countNum, priceNum);
 
   useEffect(() => {
-    if (editingLineId) return;
-    if (lineTotalTouched) return;
     if (Number.isNaN(countNum) || Number.isNaN(priceNum)) {
       setLineTotalInput("");
       return;
     }
-    setLineTotalInput(String(autoTotal));
-  }, [editingLineId, lineTotalTouched, countNum, priceNum, autoTotal]);
+    setLineTotalInput(formatLineTotal(autoTotal));
+  }, [countNum, priceNum, autoTotal]);
 
   function resetLineForm() {
     setCategorySel(null);
@@ -117,7 +120,6 @@ export default function OrderDetailPage() {
     setLineCount("");
     setLinePrice("");
     setLineTotalInput("");
-    setLineTotalTouched(false);
     setLineDesc("");
     setEditingLineId(null);
   }
@@ -158,17 +160,7 @@ export default function OrderDetailPage() {
       return;
     }
 
-    const ltRaw = trimOrEmpty(lineTotalInput);
-    let lineTotalVal: number;
-    if (ltRaw === "") {
-      lineTotalVal = defaultLineTotalNum(count, price);
-    } else {
-      lineTotalVal = parseFloat(ltRaw);
-      if (Number.isNaN(lineTotalVal)) {
-        setError("行金额无效");
-        return;
-      }
-    }
+    const lineTotalVal = defaultLineTotalNum(count, price);
 
     if (editingLineId) {
       const res = await fetch(`/api/order-lines/${editingLineId}`, {
@@ -230,8 +222,7 @@ export default function OrderDetailPage() {
     setUnitSel({ kind: "id", id: row.unit.id, label: row.unit.name });
     setLineCount(String(row.count));
     setLinePrice(String(row.price));
-    setLineTotalInput(String(row.line_total));
-    setLineTotalTouched(true);
+    setLineTotalInput(formatLineTotal(defaultLineTotalNum(row.count, row.price)));
     setLineDesc(row.desc ?? "");
     setError(null);
     setLineModalOpen(true);
@@ -275,7 +266,9 @@ export default function OrderDetailPage() {
       <Card >
         <Typography.Text type="danger">{error ?? "订单不存在"}</Typography.Text>
         <div className="mt-3">
-          <Link href="/order/list" className="text-[#165dff] hover:underline">返回列表</Link>
+          <Link href="/order/list">
+            <Button>返回</Button>
+          </Link>
         </div>
       </Card>
     );
@@ -284,56 +277,62 @@ export default function OrderDetailPage() {
   return (
     <div className="space-y-3">
       <Card >
-        <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-          <div className="min-w-0">
-            <Link href="/order/list" className="text-xs text-[#165dff] hover:underline">← 返回订单列表</Link>
-            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-              <Typography.Title heading={6} style={{ margin: 0 }}>订单：{order.name}</Typography.Title>
-              <Typography.Text type="secondary">进货地：{order.purchasePlace.place} / {order.purchasePlace.marketName}</Typography.Text>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="grid min-w-0 flex-1 gap-x-4 gap-y-1 text-sm md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+            <div className="flex min-w-0 gap-1">
+              <Typography.Text type="secondary" className="shrink-0">订单名：</Typography.Text>
+              <Typography.Text className="min-w-0 truncate font-medium">{order.name}</Typography.Text>
             </div>
-            {order.desc ? (
-              <Typography.Text type="secondary" className="mt-1 block">备注：{order.desc}</Typography.Text>
-            ) : null}
+            <div className="flex min-w-0 gap-1">
+              <Typography.Text type="secondary" className="shrink-0">进货地：</Typography.Text>
+              <Typography.Text className="min-w-0 truncate">
+                {order.purchasePlace.place} / {order.purchasePlace.marketName}
+              </Typography.Text>
+            </div>
+            <div className="flex min-w-0 gap-1 md:col-span-2">
+              <Typography.Text type="secondary" className="shrink-0">备注：</Typography.Text>
+              <Typography.Text className="min-w-0 truncate">{order.desc || "—"}</Typography.Text>
+            </div>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
-            <Button type="primary" onClick={startCreateLine}>新增明细</Button>
+            <Link href="/order/list">
+              <Button>返回</Button>
+            </Link>
+            <Button type="primary" onClick={startCreateLine}>新增商品</Button>
             <Button onClick={() => void handleExportExcel()} loading={exporting} disabled={lines.length === 0}>导出 Excel</Button>
           </div>
         </div>
         {error ? <Typography.Text type="danger" className="mt-2 block">{error}</Typography.Text> : null}
       </Card>
 
-      <OrderDetailTable lines={lines} onEdit={startEditLine} onDelete={(id) => void removeLine(id)} />
+      {lines.length === 0 ? (
+        <div className="rounded-lg border border-[#e5e6eb] bg-white p-6 text-center">
+          <Typography.Text>暂无商品，请点击「新增商品」添加。</Typography.Text>
+        </div>
+      ) : (
+        <OrderDetailTable lines={lines} onEdit={startEditLine} onDelete={(id) => void removeLine(id)} />
+      )}
 
-      <Modal title={editingLineId ? "编辑明细" : "新增明细"} visible={lineModalOpen} onCancel={() => setLineModalOpen(false)} footer={null}>
+      <Modal title={editingLineId ? "编辑商品" : "新增商品"} visible={lineModalOpen} onCancel={() => setLineModalOpen(false)} footer={null}>
         <form onSubmit={handleLineSubmit} className="flex flex-col gap-3">
-          <MasterDataCombobox label="分类" apiPath="/api/categories" disabled={!!editingLineId} value={categorySel} onChange={setCategorySel} />
-          <MasterDataCombobox label="单位" apiPath="/api/units" disabled={!!editingLineId} value={unitSel} onChange={setUnitSel} />
-          <MasterDataCombobox label="商品" apiPath="/api/commodities" disabled={!!editingLineId} value={commoditySel} onChange={setCommoditySel} onPickCommodity={onPickCommodity} />
+          <MasterDataCombobox label="商品" apiPath="/api/commodities" disabled={!!editingLineId} value={commoditySel} onChange={setCommoditySel} onPickCommodity={onPickCommodity} testId="order-line-commodity-select" />
+          <MasterDataCombobox label="分类" apiPath="/api/categories" disabled={!!editingLineId} value={categorySel} onChange={setCategorySel} testId="order-line-category-select" />
+          <MasterDataCombobox label="单位" apiPath="/api/units" disabled={!!editingLineId} value={unitSel} onChange={setUnitSel} testId="order-line-unit-select" />
 
           <label className="text-sm text-[#4e5969]">数量</label>
           <Input type="number" value={lineCount} onChange={setLineCount} required />
           <label className="text-sm text-[#4e5969]">单价</label>
           <Input type="number" value={linePrice} onChange={setLinePrice} required />
-          <label className="text-sm text-[#4e5969]">行金额（可改）</label>
-          <Input type="number" value={lineTotalInput} onChange={(v) => { setLineTotalTouched(true); setLineTotalInput(v); }} />
-          {!editingLineId && lineTotalInput !== "" && !Number.isNaN(lineTotalValNum(lineTotalInput)) && !Number.isNaN(countNum) && !Number.isNaN(priceNum) && lineTotalValNum(lineTotalInput) !== autoTotal ? (
-            <Typography.Text style={{ color: "#ffb65c" }}>与计算值 {autoTotal} 不一致，保存后金额列将标红</Typography.Text>
-          ) : null}
+          <label className="text-sm text-[#4e5969]">总金额</label>
+          <Input type="number" value={lineTotalInput} readOnly />
           <label className="text-sm text-[#4e5969]">备注（可选）</label>
           <Input value={lineDesc} onChange={setLineDesc} />
           <div className="flex justify-end gap-2">
             <Button onClick={() => setLineModalOpen(false)}>取消</Button>
-            <Button htmlType="submit" type="primary">{editingLineId ? "保存明细" : "添加明细"}</Button>
+            <Button htmlType="submit" type="primary">{editingLineId ? "保存商品" : "添加商品"}</Button>
           </div>
         </form>
       </Modal>
     </div>
   );
-}
-
-function lineTotalValNum(s: string): number {
-  const t = s.trim();
-  if (t === "") return NaN;
-  return parseFloat(t);
 }
