@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import "@arco-design/web-react/dist/css/arco.css";
 import "./globals.css";
+import { ArcoProvider } from "@/components/arco-provider";
 
 export const metadata: Metadata = {
   title: "recon",
@@ -13,7 +15,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN" className="h-full antialiased">
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+      <body className="min-h-full font-sans">
+        <ArcoProvider>{children}</ArcoProvider>
+      </body>
     </html>
   );
 }

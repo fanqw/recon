@@ -1,10 +1,24 @@
 "use client";
 
 import {
+  Button,
+  Card,
+  Input,
+  Modal,
+  Select,
+  Space,
+  Table,
+  Typography,
+  type TableColumnProps,
+} from "@arco-design/web-react";
+import { ListTableEmptyState } from "@/components/list-table-empty";
+import {
   isDeleteBlockCode,
   messageForDeleteBlockCode,
 } from "@/lib/delete-block-codes";
-import { useCallback, useEffect, useState } from "react";
+import { formatDateTime } from "@/lib/datetime";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Category = { id: string; name: string };
 type Unit = { id: string; name: string };
@@ -14,43 +28,96 @@ type Commodity = {
   desc: string | null;
   category: Category;
   unit: Unit;
+  createdAt: string;
+  updatedAt: string;
 };
 
-/**
- * 商品管理页：关联分类与单位，对接 /api/commodities。
- */
+function optionMatches(inputValue: string, option: React.ReactElement) {
+  const props = option.props as { children?: React.ReactNode };
+  return String(props.children ?? "")
+    .toLowerCase()
+    .includes(inputValue.toLowerCase());
+}
+
+function sameText(a: string, b: string) {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+function findCategory(rows: Category[], value: string) {
+  const input = value.trim();
+  return rows.find((row) => row.id === input || sameText(row.name, input));
+}
+
+function findUnit(rows: Unit[], value: string) {
+  const input = value.trim();
+  return rows.find((row) => row.id === input || sameText(row.name, input));
+}
+
 export default function CommodityPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlQuery = searchParams.get("q") ?? "";
   const [items, setItems] = useState<Commodity[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState(urlQuery);
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [unitId, setUnitId] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /** `options` 数据驱动，避免 Select.Option 子节点在 React 19 下触发 element.ref 弃用警告 */
+  const categorySelectOptions = useMemo(
+    () => categories.map((c) => ({ label: c.name, value: c.id })),
+    [categories],
+  );
+  const unitSelectOptions = useMemo(
+    () => units.map((u) => ({ label: u.name, value: u.id })),
+    [units],
+  );
+
+  useEffect(() => {
+    setQuery(urlQuery);
+  }, [urlQuery]);
+
+  const loadCategories = useCallback(async () => {
+    const res = await fetch("/api/categories", { credentials: "include" });
+    const data = await res.json();
+    if (!res.ok) return null;
+    const rows = (data as { items: Category[] }).items ?? [];
+    setCategories(rows);
+    return rows;
+  }, []);
+
+  const loadUnits = useCallback(async () => {
+    const res = await fetch("/api/units", { credentials: "include" });
+    const data = await res.json();
+    if (!res.ok) return null;
+    const rows = (data as { items: Unit[] }).items ?? [];
+    setUnits(rows);
+    return rows;
+  }, []);
 
   const loadMasters = useCallback(async () => {
     const [cRes, uRes] = await Promise.all([
-      fetch("/api/categories", { credentials: "include" }),
-      fetch("/api/units", { credentials: "include" }),
+      loadCategories(),
+      loadUnits(),
     ]);
-    const cData = await cRes.json();
-    const uData = await uRes.json();
-    if (cRes.ok) {
-      setCategories((cData as { items: Category[] }).items ?? []);
-    }
-    if (uRes.ok) {
-      setUnits((uData as { items: Unit[] }).items ?? []);
-    }
-  }, []);
+    return { categories: cRes, units: uRes };
+  }, [loadCategories, loadUnits]);
 
   const loadList = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/commodities", { credentials: "include" });
+      const q = query.trim();
+      const url = q ? `/api/commodities?q=${encodeURIComponent(q)}` : "/api/commodities";
+      const res = await fetch(url, { credentials: "include" });
       const data = await res.json();
       if (!res.ok) {
         setError((data as { error?: string }).error ?? "加载失败");
@@ -60,23 +127,86 @@ export default function CommodityPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [query]);
 
   useEffect(() => {
     void loadMasters();
-  }, [loadMasters]);
-
-  useEffect(() => {
     void loadList();
-  }, [loadList]);
+  }, [loadList, loadMasters]);
+
+  function handleQueryChange(value: string) {
+    setQuery(value);
+    const params = new URLSearchParams(searchParams.toString());
+    const q = value.trim();
+    if (q) params.set("q", q);
+    else params.delete("q");
+    const nextQuery = params.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+  }
+
+  async function ensureCategoryId(value: string) {
+    const input = value.trim();
+    const existing = findCategory(categories, input);
+    if (existing) return existing.id;
+
+    const res = await fetch("/api/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ name: input }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (res.status === 409) {
+        const latest = await loadCategories();
+        const matched = latest ? findCategory(latest, input) : undefined;
+        if (matched) return matched.id;
+      }
+      setError((data as { error?: string }).error ?? "创建分类失败");
+      return null;
+    }
+    const item = (data as { item: Category }).item;
+    setCategories((prev) => [item, ...prev]);
+    return item.id;
+  }
+
+  async function ensureUnitId(value: string) {
+    const input = value.trim();
+    const existing = findUnit(units, input);
+    if (existing) return existing.id;
+
+    const res = await fetch("/api/units", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ name: input }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (res.status === 409) {
+        const latest = await loadUnits();
+        const matched = latest ? findUnit(latest, input) : undefined;
+        if (matched) return matched.id;
+      }
+      setError((data as { error?: string }).error ?? "创建单位失败");
+      return null;
+    }
+    const item = (data as { item: Unit }).item;
+    setUnits((prev) => [item, ...prev]);
+    return item.id;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!categoryId || !unitId) {
+    if (!categoryId.trim() || !unitId.trim()) {
       setError("请选择分类与单位");
       return;
     }
+    const resolvedCategoryId = await ensureCategoryId(categoryId);
+    const resolvedUnitId = await ensureUnitId(unitId);
+    if (!resolvedCategoryId || !resolvedUnitId) return;
+
     if (editingId) {
       const res = await fetch(`/api/commodities/${editingId}`, {
         method: "PATCH",
@@ -85,8 +215,8 @@ export default function CommodityPage() {
         body: JSON.stringify({
           name,
           desc: desc || undefined,
-          categoryId,
-          unitId,
+          categoryId: resolvedCategoryId,
+          unitId: resolvedUnitId,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -102,8 +232,8 @@ export default function CommodityPage() {
         body: JSON.stringify({
           name,
           desc: desc || undefined,
-          categoryId,
-          unitId,
+          categoryId: resolvedCategoryId,
+          unitId: resolvedUnitId,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -112,24 +242,33 @@ export default function CommodityPage() {
         return;
       }
     }
-    resetForm();
-    await loadList();
-  }
-
-  function resetForm() {
     setName("");
     setDesc("");
     setCategoryId("");
     setUnitId("");
     setEditingId(null);
+    setModalOpen(false);
+    await loadList();
   }
 
-  function startEdit(row: Commodity) {
+  function openCreate() {
+    setEditingId(null);
+    setName("");
+    setDesc("");
+    setCategoryId("");
+    setUnitId("");
+    setError(null);
+    setModalOpen(true);
+  }
+
+  function openEdit(row: Commodity) {
     setEditingId(row.id);
     setName(row.name);
     setDesc(row.desc ?? "");
     setCategoryId(row.category.id);
     setUnitId(row.unit.id);
+    setError(null);
+    setModalOpen(true);
   }
 
   async function removeRow(id: string) {
@@ -142,145 +281,101 @@ export default function CommodityPage() {
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       const code = (data as { code?: unknown }).code;
-      if (isDeleteBlockCode(code)) {
-        setError(messageForDeleteBlockCode(code));
-      } else {
-        setError((data as { error?: string }).error ?? "删除失败");
-      }
+      if (isDeleteBlockCode(code)) setError(messageForDeleteBlockCode(code));
+      else setError((data as { error?: string }).error ?? "删除失败");
       return;
     }
-    if (editingId === id) resetForm();
     await loadList();
   }
 
+  const columns: TableColumnProps<Commodity>[] = [
+    { title: "名称", dataIndex: "name", width: 180 },
+    { title: "分类", width: 140, render: (_, row) => row.category.name },
+    { title: "单位", width: 120, render: (_, row) => row.unit.name },
+    { title: "备注", width: 220, render: (_, row) => row.desc ?? "—" },
+    {
+      title: "创建时间",
+      dataIndex: "createdAt",
+      width: 170,
+      render: (_, row) => formatDateTime(row.createdAt),
+    },
+    {
+      title: "更新时间",
+      dataIndex: "updatedAt",
+      width: 170,
+      render: (_, row) => formatDateTime(row.updatedAt),
+    },
+    {
+      title: "操作",
+      fixed: "right",
+      width: 96,
+      render: (_, row) => (
+        <Space size={4}>
+          <Button size="mini" type="text" onClick={() => openEdit(row)}>编辑</Button>
+          <Button size="mini" status="danger" type="text" onClick={() => void removeRow(row.id)}>删除</Button>
+        </Space>
+      ),
+    },
+  ];
+
   return (
-    <div>
-      <h1 className="mb-6 text-2xl font-semibold text-zinc-900">商品</h1>
-
-      <form
-        onSubmit={handleSubmit}
-        className="mb-8 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm"
-      >
-        <h2 className="mb-3 text-sm font-medium text-zinc-700">
-          {editingId ? "编辑商品" : "新建商品"}
-        </h2>
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="名称"
-            className="rounded border border-zinc-300 px-3 py-2 text-sm"
-            required
-          />
-          <select
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-            className="rounded border border-zinc-300 px-3 py-2 text-sm"
-            required
-          >
-            <option value="">选择分类</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <select
-            value={unitId}
-            onChange={(e) => setUnitId(e.target.value)}
-            className="rounded border border-zinc-300 px-3 py-2 text-sm"
-            required
-          >
-            <option value="">选择单位</option>
-            {units.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
-            ))}
-          </select>
-          <input
-            value={desc}
-            onChange={(e) => setDesc(e.target.value)}
-            placeholder="描述（可选）"
-            className="min-w-[200px] flex-1 rounded border border-zinc-300 px-3 py-2 text-sm"
-          />
-          <button
-            type="submit"
-            className="rounded bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-800"
-          >
-            {editingId ? "保存" : "新建"}
-          </button>
-          {editingId ? (
-            <button
-              type="button"
-              onClick={resetForm}
-              className="rounded border border-zinc-300 px-4 py-2 text-sm"
-            >
-              取消
-            </button>
-          ) : null}
-        </div>
-      </form>
-
-      {error ? (
-        <p className="mb-4 text-sm text-red-600" role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-zinc-200 bg-zinc-50">
-            <tr>
-              <th className="px-4 py-3 font-medium text-zinc-700">名称</th>
-              <th className="px-4 py-3 font-medium text-zinc-700">分类</th>
-              <th className="px-4 py-3 font-medium text-zinc-700">单位</th>
-              <th className="px-4 py-3 font-medium text-zinc-700">描述</th>
-              <th className="px-4 py-3 font-medium text-zinc-700">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-zinc-500">
-                  加载中…
-                </td>
-              </tr>
-            ) : items.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-zinc-500">
-                  暂无数据
-                </td>
-              </tr>
-            ) : (
-              items.map((row) => (
-                <tr key={row.id} className="border-b border-zinc-100">
-                  <td className="px-4 py-3 text-zinc-900">{row.name}</td>
-                  <td className="px-4 py-3 text-zinc-700">{row.category.name}</td>
-                  <td className="px-4 py-3 text-zinc-700">{row.unit.name}</td>
-                  <td className="px-4 py-3 text-zinc-600">{row.desc ?? "—"}</td>
-                  <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => startEdit(row)}
-                      className="mr-3 text-blue-600 hover:underline"
-                    >
-                      编辑
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void removeRow(row.id)}
-                      className="text-red-600 hover:underline"
-                    >
-                      删除
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+    <Card
+      title={<Typography.Title heading={6}>商品</Typography.Title>}
+      extra={<Button type="primary" onClick={openCreate}>新建</Button>}
+    >
+      {error ? <Typography.Text type="error">{error}</Typography.Text> : null}
+      <div className={error ? "my-3 max-w-md" : "mb-3 max-w-md"}>
+        <Input
+          allowClear
+          value={query}
+          onChange={handleQueryChange}
+          placeholder="搜索名称、分类、单位或备注"
+        />
       </div>
-    </div>
+      <Table
+        rowKey="id"
+        loading={loading}
+        columns={columns}
+        data={items}
+        pagination={{ pageSize: 10, showTotal: true }}
+        scroll={{ x: 1096 }}
+        noDataElement={<ListTableEmptyState />}
+      />
+
+      <Modal title={editingId ? "编辑商品" : "新建商品"} visible={modalOpen} onCancel={() => setModalOpen(false)} footer={null}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <label className="text-sm text-[#4e5969]">名称</label>
+          <Input value={name} onChange={setName} placeholder="请输入商品名称" required />
+          <label className="text-sm text-[#4e5969]">分类</label>
+          <Select
+            allowCreate
+            data-testid="commodity-category-select"
+            filterOption={optionMatches}
+            options={categorySelectOptions}
+            placeholder="请选择或输入分类"
+            showSearch
+            value={categoryId || undefined}
+            onChange={(v) => setCategoryId(String(v))}
+          />
+          <label className="text-sm text-[#4e5969]">单位</label>
+          <Select
+            allowCreate
+            data-testid="commodity-unit-select"
+            filterOption={optionMatches}
+            options={unitSelectOptions}
+            placeholder="请选择或输入单位"
+            showSearch
+            value={unitId || undefined}
+            onChange={(v) => setUnitId(String(v))}
+          />
+          <label className="text-sm text-[#4e5969]">备注（可选）</label>
+          <Input.TextArea value={desc} onChange={setDesc} placeholder="请输入备注" rows={3} />
+          <div className="flex justify-end gap-2">
+            <Button onClick={() => setModalOpen(false)}>取消</Button>
+            <Button htmlType="submit" type="primary">{editingId ? "保存" : "新建"}</Button>
+          </div>
+        </form>
+      </Modal>
+    </Card>
   );
 }

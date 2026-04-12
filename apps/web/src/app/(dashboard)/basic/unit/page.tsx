@@ -1,33 +1,57 @@
 "use client";
 
 import {
+  Button,
+  Card,
+  Input,
+  Modal,
+  Space,
+  Table,
+  Typography,
+  type TableColumnProps,
+} from "@arco-design/web-react";
+import { ListTableEmptyState } from "@/components/list-table-empty";
+import {
   isDeleteBlockCode,
   messageForDeleteBlockCode,
 } from "@/lib/delete-block-codes";
+import { formatDateTime } from "@/lib/datetime";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 type Unit = {
   id: string;
   name: string;
   desc: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
-/**
- * 单位管理页：列表 CRUD，对接 /api/units。
- */
 export default function UnitPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlQuery = searchParams.get("q") ?? "";
   const [items, setItems] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState(urlQuery);
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setQuery(urlQuery);
+  }, [urlQuery]);
 
   const loadList = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/units", { credentials: "include" });
+      const q = query.trim();
+      const url = q ? `/api/units?q=${encodeURIComponent(q)}` : "/api/units";
+      const res = await fetch(url, { credentials: "include" });
       const data = await res.json();
       if (!res.ok) {
         setError((data as { error?: string }).error ?? "加载失败");
@@ -37,11 +61,21 @@ export default function UnitPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [query]);
 
   useEffect(() => {
     void loadList();
   }, [loadList]);
+
+  function handleQueryChange(value: string) {
+    setQuery(value);
+    const params = new URLSearchParams(searchParams.toString());
+    const q = value.trim();
+    if (q) params.set("q", q);
+    else params.delete("q");
+    const nextQuery = params.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -74,19 +108,24 @@ export default function UnitPage() {
     setName("");
     setDesc("");
     setEditingId(null);
+    setModalOpen(false);
     await loadList();
   }
 
-  function startEdit(row: Unit) {
-    setEditingId(row.id);
-    setName(row.name);
-    setDesc(row.desc ?? "");
-  }
-
-  function cancelEdit() {
+  function openCreate() {
     setEditingId(null);
     setName("");
     setDesc("");
+    setError(null);
+    setModalOpen(true);
+  }
+
+  function openEdit(row: Unit) {
+    setEditingId(row.id);
+    setName(row.name);
+    setDesc(row.desc ?? "");
+    setError(null);
+    setModalOpen(true);
   }
 
   async function removeRow(id: string) {
@@ -99,115 +138,76 @@ export default function UnitPage() {
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       const code = (data as { code?: unknown }).code;
-      if (isDeleteBlockCode(code)) {
-        setError(messageForDeleteBlockCode(code));
-      } else {
-        setError((data as { error?: string }).error ?? "删除失败");
-      }
+      if (isDeleteBlockCode(code)) setError(messageForDeleteBlockCode(code));
+      else setError((data as { error?: string }).error ?? "删除失败");
       return;
     }
-    if (editingId === id) cancelEdit();
     await loadList();
   }
 
+  const columns: TableColumnProps<Unit>[] = [
+    { title: "名称", dataIndex: "name", width: 180 },
+    { title: "备注", width: 240, render: (_, row) => row.desc ?? "—" },
+    {
+      title: "创建时间",
+      dataIndex: "createdAt",
+      width: 170,
+      render: (_, row) => formatDateTime(row.createdAt),
+    },
+    {
+      title: "更新时间",
+      dataIndex: "updatedAt",
+      width: 170,
+      render: (_, row) => formatDateTime(row.updatedAt),
+    },
+    {
+      title: "操作",
+      fixed: "right",
+      width: 96,
+      render: (_, row) => (
+        <Space size={4}>
+          <Button size="mini" type="text" onClick={() => openEdit(row)}>编辑</Button>
+          <Button size="mini" status="danger" type="text" onClick={() => void removeRow(row.id)}>删除</Button>
+        </Space>
+      ),
+    },
+  ];
+
   return (
-    <div>
-      <h1 className="mb-6 text-2xl font-semibold text-zinc-900">单位</h1>
-
-      <form
-        onSubmit={handleSubmit}
-        className="mb-8 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm"
-      >
-        <h2 className="mb-3 text-sm font-medium text-zinc-700">
-          {editingId ? "编辑单位" : "新建单位"}
-        </h2>
-        <div className="flex flex-wrap gap-3">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="名称"
-            className="rounded border border-zinc-300 px-3 py-2 text-sm"
-            required
-          />
-          <input
-            value={desc}
-            onChange={(e) => setDesc(e.target.value)}
-            placeholder="描述（可选）"
-            className="min-w-[200px] flex-1 rounded border border-zinc-300 px-3 py-2 text-sm"
-          />
-          <button
-            type="submit"
-            className="rounded bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-800"
-          >
-            {editingId ? "保存" : "新建"}
-          </button>
-          {editingId ? (
-            <button
-              type="button"
-              onClick={cancelEdit}
-              className="rounded border border-zinc-300 px-4 py-2 text-sm"
-            >
-              取消
-            </button>
-          ) : null}
-        </div>
-      </form>
-
-      {error ? (
-        <p className="mb-4 text-sm text-red-600" role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-zinc-200 bg-zinc-50">
-            <tr>
-              <th className="px-4 py-3 font-medium text-zinc-700">名称</th>
-              <th className="px-4 py-3 font-medium text-zinc-700">描述</th>
-              <th className="px-4 py-3 font-medium text-zinc-700">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={3} className="px-4 py-8 text-center text-zinc-500">
-                  加载中…
-                </td>
-              </tr>
-            ) : items.length === 0 ? (
-              <tr>
-                <td colSpan={3} className="px-4 py-8 text-center text-zinc-500">
-                  暂无数据
-                </td>
-              </tr>
-            ) : (
-              items.map((row) => (
-                <tr key={row.id} className="border-b border-zinc-100">
-                  <td className="px-4 py-3 text-zinc-900">{row.name}</td>
-                  <td className="px-4 py-3 text-zinc-600">{row.desc ?? "—"}</td>
-                  <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => startEdit(row)}
-                      className="mr-3 text-blue-600 hover:underline"
-                    >
-                      编辑
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void removeRow(row.id)}
-                      className="text-red-600 hover:underline"
-                    >
-                      删除
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+    <Card
+      title={<Typography.Title heading={6}>单位</Typography.Title>}
+      extra={<Button type="primary" onClick={openCreate}>新建</Button>}
+    >
+      {error ? <Typography.Text type="error">{error}</Typography.Text> : null}
+      <div className={error ? "my-3 max-w-md" : "mb-3 max-w-md"}>
+        <Input
+          allowClear
+          value={query}
+          onChange={handleQueryChange}
+          placeholder="搜索名称或备注"
+        />
       </div>
-    </div>
+      <Table
+        rowKey="id"
+        loading={loading}
+        columns={columns}
+        data={items}
+        pagination={{ pageSize: 10, showTotal: true }}
+        scroll={{ x: 856 }}
+        noDataElement={<ListTableEmptyState />}
+      />
+      <Modal title={editingId ? "编辑单位" : "新建单位"} visible={modalOpen} onCancel={() => setModalOpen(false)} footer={null}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <label className="text-sm text-[#4e5969]">名称</label>
+          <Input value={name} onChange={setName} placeholder="请输入单位名称" required />
+          <label className="text-sm text-[#4e5969]">备注（可选）</label>
+          <Input.TextArea value={desc} onChange={setDesc} placeholder="请输入备注" rows={3} />
+          <div className="flex justify-end gap-2">
+            <Button onClick={() => setModalOpen(false)}>取消</Button>
+            <Button htmlType="submit" type="primary">{editingId ? "保存" : "新建"}</Button>
+          </div>
+        </form>
+      </Modal>
+    </Card>
   );
 }

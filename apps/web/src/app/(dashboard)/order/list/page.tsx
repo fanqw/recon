@@ -1,13 +1,29 @@
 "use client";
 
+import {
+  Button,
+  Card,
+  Input,
+  Modal,
+  Select,
+  Space,
+  Table,
+  Typography,
+  type TableColumnProps,
+} from "@arco-design/web-react";
+import { ListTableEmptyState } from "@/components/list-table-empty";
+import { formatDateTime } from "@/lib/datetime";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Order = {
   id: string;
   name: string;
   desc: string | null;
   purchasePlace: PurchasePlace;
+  createdAt: string;
+  updatedAt: string;
 };
 
 type PurchasePlace = {
@@ -16,23 +32,86 @@ type PurchasePlace = {
   marketName: string;
 };
 
-/**
- * 订单列表：创建订单并跳转详情。
- */
+function optionMatches(inputValue: string, option: React.ReactElement) {
+  const props = option.props as { children?: React.ReactNode };
+  return String(props.children ?? "")
+    .toLowerCase()
+    .includes(inputValue.toLowerCase());
+}
+
+function purchasePlaceLabel(row: PurchasePlace) {
+  return `${row.place} / ${row.marketName}`;
+}
+
+function parsePurchasePlaceInput(value: string) {
+  const [placePart, ...marketParts] = value.split("/");
+  const place = placePart.trim();
+  const marketName = marketParts.join("/").trim();
+  return { place, marketName, valid: value.includes("/") && Boolean(place && marketName) };
+}
+
+function sameText(a: string, b: string) {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+function normalizeComparableText(value: string) {
+  return value.replace(/\s+/g, "").trim().toLowerCase();
+}
+
+function findPurchasePlace(rows: PurchasePlace[], value: string) {
+  const input = value.trim();
+  const parsed = parsePurchasePlaceInput(input);
+
+  return rows.find((row) => {
+    if (row.id === input) return true;
+    if (parsed.valid) {
+      return (
+        normalizeComparableText(row.place) === normalizeComparableText(parsed.place) &&
+        normalizeComparableText(row.marketName) === normalizeComparableText(parsed.marketName)
+      );
+    }
+
+    return sameText(purchasePlaceLabel(row), input);
+  });
+}
+
 export default function OrderListPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlQuery = searchParams.get("q") ?? "";
   const [items, setItems] = useState<Order[]>([]);
   const [purchasePlaces, setPurchasePlaces] = useState<PurchasePlace[]>([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState(urlQuery);
   const [name, setName] = useState("");
   const [purchasePlaceId, setPurchasePlaceId] = useState("");
   const [desc, setDesc] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  /** `options` 数据驱动，避免 Select.Option 子节点在 React 19 下触发 element.ref 弃用警告 */
+  const purchasePlaceSelectOptions = useMemo(
+    () =>
+      purchasePlaces.map((row) => ({
+        label: purchasePlaceLabel(row),
+        value: row.id,
+      })),
+    [purchasePlaces],
+  );
+
+  useEffect(() => {
+    setQuery(urlQuery);
+  }, [urlQuery]);
 
   const loadList = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/orders", { credentials: "include" });
+      const q = query.trim();
+      const url = q ? `/api/orders?q=${encodeURIComponent(q)}` : "/api/orders";
+      const res = await fetch(url, { credentials: "include" });
       const data = await res.json();
       if (!res.ok) {
         setError((data as { error?: string }).error ?? "加载失败");
@@ -42,7 +121,7 @@ export default function OrderListPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [query]);
 
   const loadPurchasePlaces = useCallback(async () => {
     const res = await fetch("/api/purchase-places", { credentials: "include" });
@@ -51,7 +130,9 @@ export default function OrderListPage() {
       setError((data as { error?: string }).error ?? "加载进货地失败");
       return;
     }
-    setPurchasePlaces((data as { items: PurchasePlace[] }).items ?? []);
+    const rows = (data as { items: PurchasePlace[] }).items ?? [];
+    setPurchasePlaces(rows);
+    return rows;
   }, []);
 
   useEffect(() => {
@@ -59,18 +140,66 @@ export default function OrderListPage() {
     void loadPurchasePlaces();
   }, [loadList, loadPurchasePlaces]);
 
+  function handleQueryChange(value: string) {
+    setQuery(value);
+    const params = new URLSearchParams(searchParams.toString());
+    const q = value.trim();
+    if (q) params.set("q", q);
+    else params.delete("q");
+    const nextQuery = params.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+  }
+
+  async function ensurePurchasePlaceId(value: string) {
+    const input = value.trim();
+    const existing = findPurchasePlace(purchasePlaces, input);
+    if (existing) return existing.id;
+
+    const { place, marketName, valid } = parsePurchasePlaceInput(input);
+    if (!valid) {
+      setError("请输入“进货地 / 市场名称”格式");
+      return null;
+    }
+    const res = await fetch("/api/purchase-places", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ place, marketName }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (res.status === 409) {
+        const latest = await loadPurchasePlaces();
+        const matched = latest ? findPurchasePlace(latest, input) : undefined;
+        if (matched) return matched.id;
+      }
+      setError((data as { error?: string }).error ?? "创建进货地失败");
+      return null;
+    }
+    const item = (data as { item: PurchasePlace }).item;
+    setPurchasePlaces((prev) => [item, ...prev]);
+    return item.id;
+  }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!purchasePlaceId) {
+    if (!purchasePlaceId.trim()) {
       setError("请选择进货地");
       return;
     }
+    const resolvedPurchasePlaceId = await ensurePurchasePlaceId(purchasePlaceId);
+    if (!resolvedPurchasePlaceId) return;
+
     const res = await fetch("/api/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ name, purchasePlaceId, desc: desc || undefined }),
+      body: JSON.stringify({
+        name,
+        purchasePlaceId: resolvedPurchasePlaceId,
+        desc: desc || undefined,
+      }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -80,107 +209,130 @@ export default function OrderListPage() {
     setName("");
     setPurchasePlaceId("");
     setDesc("");
+    setCreateOpen(false);
     await loadList();
   }
 
+  async function removeRow(row: Order) {
+    if (!confirm(`确定删除订单「${row.name}」及其明细？`)) return;
+    setError(null);
+    setDeletingId(row.id);
+    try {
+      const res = await fetch(`/api/orders/${row.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError((data as { error?: string }).error ?? "删除订单失败");
+        return;
+      }
+      await loadList();
+    } catch {
+      setError("删除订单失败");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  function openCreate() {
+    setError(null);
+    setName("");
+    setPurchasePlaceId("");
+    setDesc("");
+    setCreateOpen(true);
+  }
+
+  const columns: TableColumnProps<Order>[] = [
+    { title: "名称", dataIndex: "name", width: 180 },
+    {
+      title: "进货地",
+      width: 240,
+      render: (_, row) => `${row.purchasePlace.place} / ${row.purchasePlace.marketName}`,
+    },
+    { title: "备注", width: 220, render: (_, row) => row.desc ?? "—" },
+    {
+      title: "创建时间",
+      dataIndex: "createdAt",
+      width: 170,
+      render: (_, row) => formatDateTime(row.createdAt),
+    },
+    {
+      title: "更新时间",
+      dataIndex: "updatedAt",
+      width: 170,
+      render: (_, row) => formatDateTime(row.updatedAt),
+    },
+    {
+      title: "操作",
+      fixed: "right",
+      width: 132,
+      render: (_, row) => (
+        <Space size={4}>
+          <Link href={`/order/list/${row.id}`} className="text-xs text-[#165dff] hover:underline">
+            详情
+          </Link>
+          <Button
+            size="mini"
+            status="danger"
+            type="text"
+            loading={deletingId === row.id}
+            onClick={() => void removeRow(row)}
+          >
+            删除订单
+          </Button>
+        </Space>
+      ),
+    },
+  ];
+
   return (
-    <div>
-      <h1 className="mb-6 text-2xl font-semibold text-zinc-900">订单</h1>
-
-      <form
-        onSubmit={handleCreate}
-        className="mb-8 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm"
-      >
-        <h2 className="mb-3 text-sm font-medium text-zinc-700">新建订单</h2>
-        <div className="flex flex-wrap gap-3">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="订单名称"
-            className="rounded border border-zinc-300 px-3 py-2 text-sm"
-            required
-          />
-          <select
-            value={purchasePlaceId}
-            onChange={(e) => setPurchasePlaceId(e.target.value)}
-            className="rounded border border-zinc-300 px-3 py-2 text-sm"
-            required
-          >
-            <option value="" disabled>
-              {purchasePlaces.length === 0 ? "暂无进货地" : "选择进货地"}
-            </option>
-            {purchasePlaces.map((row) => (
-              <option key={row.id} value={row.id}>
-                {row.place} / {row.marketName}
-              </option>
-            ))}
-          </select>
-          <input
-            value={desc}
-            onChange={(e) => setDesc(e.target.value)}
-            placeholder="备注（可选）"
-            className="min-w-[200px] flex-1 rounded border border-zinc-300 px-3 py-2 text-sm"
-          />
-          <button
-            type="submit"
-            className="rounded bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-800"
-          >
-            创建
-          </button>
-        </div>
-      </form>
-
-      {error ? (
-        <p className="mb-4 text-sm text-red-600" role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-zinc-200 bg-zinc-50">
-            <tr>
-              <th className="px-4 py-3 font-medium text-zinc-700">名称</th>
-              <th className="px-4 py-3 font-medium text-zinc-700">进货地</th>
-              <th className="px-4 py-3 font-medium text-zinc-700">备注</th>
-              <th className="px-4 py-3 font-medium text-zinc-700">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-zinc-500">
-                  加载中…
-                </td>
-              </tr>
-            ) : items.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-zinc-500">
-                  暂无订单
-                </td>
-              </tr>
-            ) : (
-              items.map((row) => (
-                <tr key={row.id} className="border-b border-zinc-100">
-                  <td className="px-4 py-3 text-zinc-900">{row.name}</td>
-                  <td className="px-4 py-3 text-zinc-600">
-                    {row.purchasePlace.place} / {row.purchasePlace.marketName}
-                  </td>
-                  <td className="px-4 py-3 text-zinc-600">{row.desc ?? "—"}</td>
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/order/list/${row.id}`}
-                      className="text-blue-600 hover:underline"
-                    >
-                      查看详情
-                    </Link>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+    <Card
+      title={<Typography.Title heading={6}>订单</Typography.Title>}
+      extra={<Button type="primary" onClick={openCreate}>创建</Button>}
+    >
+      {error ? <Typography.Text type="error">{error}</Typography.Text> : null}
+      <div className={error ? "my-3 max-w-md" : "mb-3 max-w-md"}>
+        <Input
+          allowClear
+          value={query}
+          onChange={handleQueryChange}
+          placeholder="搜索订单、进货地、市场名称或备注"
+        />
       </div>
-    </div>
+      <Table
+        rowKey="id"
+        loading={loading}
+        columns={columns}
+        data={items}
+        pagination={{ pageSize: 10, showTotal: true }}
+        scroll={{ x: 1112 }}
+        noDataElement={<ListTableEmptyState />}
+      />
+
+      <Modal title="新建订单" visible={createOpen} onCancel={() => setCreateOpen(false)} footer={null}>
+        <form onSubmit={handleCreate} className="flex flex-col gap-3">
+          <label className="text-sm text-[#4e5969]">订单名称</label>
+          <Input value={name} onChange={setName} placeholder="请输入订单名称" required />
+          <label className="text-sm text-[#4e5969]">进货地</label>
+          <Select
+            allowCreate
+            data-testid="order-purchase-place-select"
+            filterOption={optionMatches}
+            options={purchasePlaceSelectOptions}
+            placeholder="请选择或输入进货地 / 市场名称"
+            showSearch
+            value={purchasePlaceId || undefined}
+            onChange={(v) => setPurchasePlaceId(String(v))}
+          />
+          <label className="text-sm text-[#4e5969]">备注（可选）</label>
+          <Input.TextArea value={desc} onChange={setDesc} placeholder="请输入备注" rows={3} />
+          <div className="flex justify-end gap-2">
+            <Button onClick={() => setCreateOpen(false)}>取消</Button>
+            <Button htmlType="submit" type="primary">创建</Button>
+          </div>
+        </form>
+      </Modal>
+    </Card>
   );
 }

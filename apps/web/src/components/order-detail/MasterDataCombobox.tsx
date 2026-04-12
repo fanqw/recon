@@ -1,36 +1,30 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Select } from "@arco-design/web-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  buildMasterDataComboboxOptions,
+  type MasterDataListItem,
+} from "@/lib/master-data/combobox-options";
 
-/** 选中已有主数据 id，或使用自定义名称（trim 后提交）。 */
+export type { MasterDataListItem } from "@/lib/master-data/combobox-options";
+
 export type MasterDataSelection =
   | { kind: "id"; id: string; label: string }
   | { kind: "free"; text: string }
   | null;
 
-export type MasterDataListItem = {
-  id: string;
-  name: string;
-  category?: { id: string; name: string };
-  unit?: { id: string; name: string };
-};
-
 type Props = {
-  /** 表单项标签 */
   label: string;
-  /** 如 `/api/categories` */
   apiPath: string;
   disabled?: boolean;
   value: MasterDataSelection;
   onChange: (v: MasterDataSelection) => void;
-  /** 仅商品下拉：选中列表项时带出分类与单位 */
   onPickCommodity?: (row: MasterDataListItem) => void;
   placeholder?: string;
+  testId?: string;
 };
 
-/**
- * 可搜索主数据下拉：防抖请求 `?q=`，无完全匹配时在首项提供「使用当前输入」。
- */
 export function MasterDataCombobox({
   label,
   apiPath,
@@ -39,124 +33,93 @@ export function MasterDataCombobox({
   onChange,
   onPickCommodity,
   placeholder = "输入关键字搜索或选择",
+  testId,
 }: Props) {
   const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<MasterDataListItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-
-  const displayText =
-    value?.kind === "id"
-      ? value.label
-      : value?.kind === "free"
-        ? value.text
-        : "";
+  const [items, setItems] = useState<MasterDataListItem[]>([]);
 
   useEffect(() => {
-    if (!open) return;
     const t = setTimeout(() => {
       void (async () => {
         setLoading(true);
         try {
           const q = query.trim();
-          const url =
-            q.length > 0
-              ? `${apiPath}?q=${encodeURIComponent(q)}`
-              : apiPath;
+          const url = q.length > 0 ? `${apiPath}?q=${encodeURIComponent(q)}` : apiPath;
           const res = await fetch(url, { credentials: "include" });
-          const data = (await res.json()) as {
-            items?: MasterDataListItem[];
-          };
+          // 非 2xx 或 JSON 解析失败时清空候选，避免把错误页/HTML 当成列表数据
+          if (!res.ok) {
+            setItems([]);
+            return;
+          }
+          const data = (await res.json()) as { items?: MasterDataListItem[] };
           setItems(Array.isArray(data.items) ? data.items : []);
+        } catch {
+          setItems([]);
         } finally {
           setLoading(false);
         }
       })();
     }, 280);
     return () => clearTimeout(t);
-  }, [apiPath, open, query]);
+  }, [apiPath, query]);
 
-  useEffect(() => {
-    function onDocClick(e: MouseEvent) {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
-  }, []);
+  const selectedValue =
+    value?.kind === "id" ? `id:${value.id}` : value?.kind === "free" ? `free:${value.text}` : undefined;
 
-  const trimmedQuery = query.trim();
-  const showFreeOption =
-    trimmedQuery.length > 0 &&
-    !items.some((i) => i.name === trimmedQuery);
+  function handleSearchInput(nextQuery: string) {
+    setQuery(nextQuery);
+  }
 
-  const pickItem = useCallback(
-    (row: MasterDataListItem) => {
-      onChange({ kind: "id", id: row.id, label: row.name });
-      setQuery(row.name);
-      setOpen(false);
-      onPickCommodity?.(row);
-    },
-    [onChange, onPickCommodity],
+  const options = useMemo(() => {
+    return buildMasterDataComboboxOptions({
+      items,
+      query,
+      currentInputLabel: (value) => value,
+    });
+  }, [items, query]);
+
+  /** 使用 `options` 数据驱动，避免 Arco 对 `Select.Option` 子节点 `cloneElement` 触发 React 19 的 element.ref 弃用警告 */
+  const selectOptions = useMemo(
+    () => options.map((opt) => ({ label: opt.label, value: opt.value })),
+    [options],
   );
 
-  const pickFree = useCallback(() => {
-    onChange({ kind: "free", text: trimmedQuery });
-    setQuery(trimmedQuery);
-    setOpen(false);
-  }, [onChange, trimmedQuery]);
-
   return (
-    <div ref={wrapRef} className="relative min-w-[200px] flex-1">
-      <label className="mb-1 block text-xs text-zinc-500">{label}</label>
-      <input
-        type="text"
+    <div className="flex flex-col gap-1">
+      <label className="text-sm text-[#4e5969]">{label}</label>
+      <Select
+        showSearch
+        allowClear
         disabled={disabled}
-        value={open ? query : displayText}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          if (!open) setOpen(true);
-        }}
-        onFocus={() => {
-          setQuery(displayText);
-          setOpen(true);
-        }}
+        filterOption={false}
+        loading={loading}
+        options={selectOptions}
         placeholder={placeholder}
-        className="w-full rounded border border-zinc-300 px-3 py-2 text-sm disabled:bg-zinc-100"
-        autoComplete="off"
+        data-testid={testId}
+        value={selectedValue}
+        onSearch={handleSearchInput}
+        onInputValueChange={handleSearchInput}
+        onChange={(v) => {
+          const s = String(v ?? "");
+          if (!s) {
+            onChange(null);
+            return;
+          }
+          if (s.startsWith("id:")) {
+            const id = s.slice(3);
+            const row = items.find((it) => it.id === id);
+            if (row) {
+              onChange({ kind: "id", id: row.id, label: row.name });
+              onPickCommodity?.(row);
+            }
+            return;
+          }
+          if (s.startsWith("free:")) {
+            onChange({ kind: "free", text: s.slice(5) });
+          }
+        }}
       />
-      {open && !disabled ? (
-        <ul className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded border border-zinc-200 bg-white py-1 text-sm shadow-md">
-          {loading ? (
-            <li className="px-3 py-2 text-zinc-400">加载中…</li>
-          ) : null}
-          {showFreeOption ? (
-            <li>
-              <button
-                type="button"
-                className="w-full px-3 py-2 text-left text-blue-700 hover:bg-blue-50"
-                onClick={() => pickFree()}
-              >
-                使用「{trimmedQuery}」
-              </button>
-            </li>
-          ) : null}
-          {items.map((row) => (
-            <li key={row.id}>
-              <button
-                type="button"
-                className="w-full px-3 py-2 text-left hover:bg-zinc-50"
-                onClick={() => pickItem(row)}
-              >
-                {row.name}
-              </button>
-            </li>
-          ))}
-          {!loading && items.length === 0 && !showFreeOption ? (
-            <li className="px-3 py-2 text-zinc-400">无匹配项，可输入后选首项</li>
-          ) : null}
-        </ul>
-      ) : null}
     </div>
   );
 }

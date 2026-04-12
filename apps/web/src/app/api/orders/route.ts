@@ -22,11 +22,33 @@ async function guard() {
 /**
  * GET /api/orders：列出未删除订单，按更新时间倒序。
  */
-export async function GET() {
+export async function GET(req: Request) {
   const unauthorized = await guard();
   if (unauthorized) return unauthorized;
+  const { searchParams } = new URL(req.url);
+  const q = searchParams.get("q")?.trim() ?? "";
   const items = await prisma.order.findMany({
-    where: { deleted: false },
+    where: {
+      deleted: false,
+      ...(q
+        ? {
+            OR: [
+              { name: { contains: q, mode: "insensitive" as const } },
+              { desc: { contains: q, mode: "insensitive" as const } },
+              {
+                purchasePlace: {
+                  place: { contains: q, mode: "insensitive" as const },
+                },
+              },
+              {
+                purchasePlace: {
+                  marketName: { contains: q, mode: "insensitive" as const },
+                },
+              },
+            ],
+          }
+        : {}),
+    },
     include: { purchasePlace: true },
     orderBy: { updatedAt: "desc" },
   });
