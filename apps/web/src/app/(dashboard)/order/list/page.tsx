@@ -53,11 +53,25 @@ function sameText(a: string, b: string) {
   return a.trim().toLowerCase() === b.trim().toLowerCase();
 }
 
+function normalizeComparableText(value: string) {
+  return value.replace(/\s+/g, "").trim().toLowerCase();
+}
+
 function findPurchasePlace(rows: PurchasePlace[], value: string) {
   const input = value.trim();
-  return rows.find(
-    (row) => row.id === input || sameText(purchasePlaceLabel(row), input),
-  );
+  const parsed = parsePurchasePlaceInput(input);
+
+  return rows.find((row) => {
+    if (row.id === input) return true;
+    if (parsed.valid) {
+      return (
+        normalizeComparableText(row.place) === normalizeComparableText(parsed.place) &&
+        normalizeComparableText(row.marketName) === normalizeComparableText(parsed.marketName)
+      );
+    }
+
+    return sameText(purchasePlaceLabel(row), input);
+  });
 }
 
 export default function OrderListPage() {

@@ -395,12 +395,22 @@ test("新建订单弹窗进货地创建 409 后刷新并复用已有项", async 
   await createSelectOptionByInput(
     page,
     "order-purchase-place-select",
-    `${place} / ${market}`,
+    `${place}/${market}`,
+  );
+  const purchasePlaceCreateResponse = page.waitForResponse(
+    (res) =>
+      res.url().includes("/api/purchase-places") &&
+      res.request().method() === "POST",
+  );
+  const orderCreateResponse = page.waitForResponse(
+    (res) => res.url().includes("/api/orders") && res.request().method() === "POST",
   );
   await Promise.all([
-    page.waitForResponse((res) => res.url().includes("/api/orders") && res.request().method() === "POST"),
     modal.getByRole("button", { name: "创建" }).click(),
   ]);
+  const purchasePlaceCreate = await purchasePlaceCreateResponse;
+  expect(purchasePlaceCreate.status()).toBe(409);
+  await orderCreateResponse;
 
   const row = page.locator("tr").filter({ hasText: orderName }).first();
   await expect(row).toContainText(place);
