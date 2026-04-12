@@ -94,6 +94,7 @@ Pull Request 应至少包含：
 - 增量规范目录：`openspec/changes/<change-name>/specs/`。
 - 唯一任务清单：`openspec/changes/<change-name>/tasks.md`。
 - 归档目录：`openspec/changes/archive/`。
+- OpenSpec change 工件和 workflow 生成的项目文档必须使用中文编写；仅保留 OpenSpec 解析所必需的英文关键字、命令、代码标识、文件路径和 API 名称。
 
 ### Codex workflow 命令
 - `/workflow:plan` - 需求澄清并生成 OpenSpec change 工件。

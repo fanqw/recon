@@ -619,11 +619,28 @@ test("工作台导航支持新层级、侧栏折叠与主题持久化", async ({
     headers: { "Content-Type": "application/json" },
   });
   expect(login.ok()).toBeTruthy();
+  const sessionCookie = login.headers()["set-cookie"]?.match(/recon_session=([^;]+)/)?.[1];
+  expect(sessionCookie).toBeTruthy();
+  await page.context().addCookies([
+    {
+      name: "recon_session",
+      value: sessionCookie!,
+      url: "http://localhost:3000",
+      httpOnly: true,
+      sameSite: "Lax",
+    },
+  ]);
 
   await page.goto("/workspace");
   await expect(
     page.getByRole("heading", { name: "工作台", exact: true })
   ).toBeVisible();
+  await expect(page.getByText("能力建设中")).toHaveCount(0);
+  await expect(page.getByLabel("核心指标")).toBeVisible();
+  await expect(page.getByLabel("工作台图表")).toBeVisible();
+  await expect(page.getByRole("img", { name: "总金额趋势" })).toBeVisible();
+  await expect(page.getByRole("img", { name: "分类金额占比" })).toBeVisible();
+  await expect(page.getByRole("img", { name: "进货地金额占比" })).toBeVisible();
 
   const nav = page.getByRole("navigation", { name: "主导航" });
   await expect(nav.getByText("工作台", { exact: true })).toBeVisible();

@@ -150,6 +150,7 @@ GLOBAL_INSTRUCTIONS='## OpenSpec + Superpowers 融合工作流
 4. **Superpowers 纪律**：需求澄清、任务原子化、TDD、子代理执行、并行派发、调试、审查和完成前验证必须按对应 Superpowers 技能原则执行。
 5. **OpenSpec 底层能力**：创建 change 使用 `openspec new change`，校验使用 `openspec validate`，归档使用 `openspec archive`。
 6. **任务勾选**：只自动勾选最深层原子子任务；父任务在 `/workflow:validate` 后确认。
+7. **中文文档**：OpenSpec change 工件和 workflow 生成的项目文档必须使用中文编写；仅保留 OpenSpec 解析所必需的英文关键字、命令、代码标识、文件路径和 API 名称。
 
 ### Codex workflow 命令
 - `/workflow:plan` - 需求澄清并生成 OpenSpec change 工件。
@@ -185,6 +186,7 @@ argument-hint: change-name or requirement description
 - Explore 阶段允许读取文件、搜索代码、查看现有 specs/change，禁止写实现代码。
 - 需求已经明确时，不要机械追问；直接生成 OpenSpec 工件。
 - OpenSpec 是单一事实源，所有输出必须落在 `openspec/changes/<change-name>/`。
+- 生成的 proposal、design、specs、tasks 等项目文档必须使用中文；仅保留 OpenSpec 解析所必需的英文关键字、命令、代码标识、文件路径和 API 名称。
 
 ## 步骤
 1. **Explore 项目上下文**
@@ -446,6 +448,7 @@ PROJECT_INSTRUCTIONS='## OpenSpec + Superpowers 融合工作流
 - 增量规范目录：`openspec/changes/<change-name>/specs/`。
 - 唯一任务清单：`openspec/changes/<change-name>/tasks.md`。
 - 归档目录：`openspec/changes/archive/`。
+- OpenSpec change 工件和 workflow 生成的项目文档必须使用中文编写；仅保留 OpenSpec 解析所必需的英文关键字、命令、代码标识、文件路径和 API 名称。
 
 ### Codex workflow 命令
 - `/workflow:plan` - 需求澄清并生成 OpenSpec change 工件。
