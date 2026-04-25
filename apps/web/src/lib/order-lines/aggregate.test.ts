@@ -8,7 +8,7 @@ import {
 
 function fakeRow(partial: {
   price: string;
-  count: number;
+  count: number | string;
   lineTotal: string;
   categoryId: string;
   categoryName: string;
@@ -45,7 +45,7 @@ function fakeRow(partial: {
     id: "l1",
     orderId: "o1",
     commodityId: commodity.id,
-    count: partial.count,
+    count: new Prisma.Decimal(partial.count),
     price: new Prisma.Decimal(partial.price),
     lineTotal: new Prisma.Decimal(partial.lineTotal),
     desc: null,

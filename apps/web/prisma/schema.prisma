@@ -82,7 +82,7 @@ model OrderCommodity {
   id          String   @id @default(cuid())
   orderId     String   @map("order_id")
   commodityId String   @map("commodity_id")
-  count       Int
+  count       Decimal  @db.Decimal(12, 3)
   price       Decimal  @db.Decimal(12, 2)
   lineTotal   Decimal  @map("line_total") @db.Decimal(12, 2)
   desc        String?

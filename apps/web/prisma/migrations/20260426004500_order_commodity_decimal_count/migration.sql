@@ -1,0 +1,3 @@
+ALTER TABLE "OrderCommodity"
+  ALTER COLUMN "count" TYPE DECIMAL(12,3)
+  USING "count"::DECIMAL(12,3);

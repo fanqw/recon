@@ -10,12 +10,15 @@ import {
   Typography,
   type TableColumnProps,
 } from "@arco-design/web-react";
+import { FieldErrorText } from "@/components/form/FieldErrorText";
+import { RequiredFieldLabel } from "@/components/form/RequiredFieldLabel";
 import { ListTableEmptyState } from "@/components/list-table-empty";
 import {
   isDeleteBlockCode,
   messageForDeleteBlockCode,
 } from "@/lib/delete-block-codes";
 import { formatDateTime } from "@/lib/datetime";
+import { validateRequiredName } from "@/lib/forms/master-data-validation";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
@@ -40,6 +43,7 @@ export default function UnitPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   useEffect(() => {
     setQuery(urlQuery);
@@ -80,6 +84,11 @@ export default function UnitPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    const nextErrors = validateRequiredName(name);
+    setNameError(nextErrors.name ?? null);
+    if (nextErrors.name) {
+      return;
+    }
     if (editingId) {
       const res = await fetch(`/api/units/${editingId}`, {
         method: "PATCH",
@@ -108,6 +117,7 @@ export default function UnitPage() {
     setName("");
     setDesc("");
     setEditingId(null);
+    setNameError(null);
     setModalOpen(false);
     await loadList();
   }
@@ -117,6 +127,7 @@ export default function UnitPage() {
     setName("");
     setDesc("");
     setError(null);
+    setNameError(null);
     setModalOpen(true);
   }
 
@@ -125,6 +136,7 @@ export default function UnitPage() {
     setName(row.name);
     setDesc(row.desc ?? "");
     setError(null);
+    setNameError(null);
     setModalOpen(true);
   }
 
@@ -146,26 +158,28 @@ export default function UnitPage() {
   }
 
   const columns: TableColumnProps<Unit>[] = [
-    { title: "名称", dataIndex: "name", width: 180 },
+    { title: "名称", dataIndex: "name", width: 180, fixed: "left" },
     { title: "备注", width: 240, render: (_, row) => row.desc ?? "—" },
     {
       title: "创建时间",
       dataIndex: "createdAt",
-      width: 170,
+      width: 156,
       render: (_, row) => formatDateTime(row.createdAt),
     },
     {
       title: "更新时间",
       dataIndex: "updatedAt",
-      width: 170,
+      width: 156,
       render: (_, row) => formatDateTime(row.updatedAt),
     },
     {
       title: "操作",
       fixed: "right",
-      width: 96,
+      width: 88,
+      cellStyle: { paddingLeft: 12, paddingRight: 12 },
+      headerCellStyle: { paddingLeft: 12, paddingRight: 12 },
       render: (_, row) => (
-        <Space size={4}>
+        <Space size={12}>
           <Button size="mini" type="text" onClick={() => openEdit(row)}>编辑</Button>
           <Button size="mini" status="danger" type="text" onClick={() => void removeRow(row.id)}>删除</Button>
         </Space>
@@ -174,18 +188,18 @@ export default function UnitPage() {
   ];
 
   return (
-    <Card
-      title={<Typography.Title heading={6}>单位</Typography.Title>}
-      extra={<Button type="primary" onClick={openCreate}>新建</Button>}
-    >
+    <Card>
       {error ? <Typography.Text type="error">{error}</Typography.Text> : null}
-      <div className={error ? "my-3 max-w-md" : "mb-3 max-w-md"}>
-        <Input
-          allowClear
-          value={query}
-          onChange={handleQueryChange}
-          placeholder="搜索名称或备注"
-        />
+      <div className={error ? "my-3 flex items-center justify-between gap-3" : "mb-3 flex items-center justify-between gap-3"}>
+        <div className="max-w-md flex-1">
+          <Input
+            allowClear
+            value={query}
+            onChange={handleQueryChange}
+            placeholder="搜索名称或备注"
+          />
+        </div>
+        <Button type="primary" onClick={openCreate}>新建</Button>
       </div>
       <Table
         rowKey="id"
@@ -198,9 +212,19 @@ export default function UnitPage() {
       />
       <Modal title={editingId ? "编辑单位" : "新建单位"} visible={modalOpen} onCancel={() => setModalOpen(false)} footer={null}>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <label className="text-sm text-[#4e5969]">名称</label>
-          <Input value={name} onChange={setName} placeholder="请输入单位名称" required />
-          <label className="text-sm text-[#4e5969]">备注（可选）</label>
+          <RequiredFieldLabel htmlFor="unit-name" label="名称" />
+          <Input
+            id="unit-name"
+            value={name}
+            onChange={(value) => {
+              setName(value);
+              if (nameError && value.trim()) setNameError(null);
+            }}
+            placeholder="请输入单位名称"
+            status={nameError ? "error" : undefined}
+          />
+          <FieldErrorText message={nameError} />
+          <label className="form-field-label" htmlFor="unit-desc">备注（可选）</label>
           <Input.TextArea value={desc} onChange={setDesc} placeholder="请输入备注" rows={3} />
           <div className="flex justify-end gap-2">
             <Button onClick={() => setModalOpen(false)}>取消</Button>

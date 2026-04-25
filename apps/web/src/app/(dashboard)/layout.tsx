@@ -15,11 +15,11 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="dashboard-shell min-h-screen">
+    <div className="dashboard-shell h-screen overflow-hidden">
       <DashboardHeader username={user.username} />
-      <div className="flex min-h-[calc(100vh-56px)]">
+      <div className="flex h-[calc(100vh-56px)] overflow-hidden">
         <DashboardNav />
-        <main className="flex-1 px-4 py-3 sm:px-5 lg:px-6">
+        <main className="dashboard-main flex-1 overflow-y-auto px-4 py-3 sm:px-5 lg:px-6">
           <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-3">
             <DashboardBreadcrumb />
             {children}

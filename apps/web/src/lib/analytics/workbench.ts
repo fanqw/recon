@@ -34,13 +34,29 @@ export type AnalyticsTrendBucket = {
   amount: number;
 };
 
+export type AnalyticsSeries = {
+  name: string;
+  values: number[];
+};
+
+export type AnalyticsTrendSeries = {
+  labels: string[];
+  series: AnalyticsSeries[];
+};
+
+export type AnalyticsCategoryStack = {
+  categories: string[];
+  series: AnalyticsSeries[];
+};
+
 export type AnalyticsWorkbenchData = {
   filters: AnalyticsFilters;
   kpis: AnalyticsKpis;
-  byCategory: AnalyticsDimensionRow[];
-  byCommodity: AnalyticsDimensionRow[];
-  byPurchasePlace: AnalyticsDimensionRow[];
-  trend: AnalyticsTrendBucket[];
+  topCommodities: AnalyticsDimensionRow[];
+  categoryShare: AnalyticsDimensionRow[];
+  purchasePlaceShare: AnalyticsDimensionRow[];
+  categoryStacks: AnalyticsCategoryStack;
+  trend: AnalyticsTrendSeries;
 };
 
 export type AnalyticsSourceOrderLine = {
@@ -255,19 +271,81 @@ function trendLabel(date: Date, granularity: AnalyticsGranularity): string {
   return dateOnly(new Date(day.getTime() - daysSinceMonday * DAY_MS));
 }
 
-function trendRows(
+function trendSeriesByPurchasePlace(
   lines: IncludedLine[],
   granularity: AnalyticsGranularity,
-): AnalyticsTrendBucket[] {
-  const groups = new Map<string, Prisma.Decimal>();
+): AnalyticsTrendSeries {
+  const labelSet = new Set<string>();
+  const placeMap = new Map<string, { name: string; buckets: Map<string, Prisma.Decimal>; total: Prisma.Decimal }>();
+
   for (const item of lines) {
     const label = trendLabel(item.orderCreatedAt, granularity);
-    groups.set(label, (groups.get(label) ?? new Prisma.Decimal(0)).add(item.amount));
+    const placeKey = `${item.purchasePlace.place}\u0000${item.purchasePlace.marketName}`;
+    const placeName = `${item.purchasePlace.place} / ${item.purchasePlace.marketName}`;
+    labelSet.add(label);
+    const place = placeMap.get(placeKey) ?? {
+      name: placeName,
+      buckets: new Map<string, Prisma.Decimal>(),
+      total: new Prisma.Decimal(0),
+    };
+    place.buckets.set(label, (place.buckets.get(label) ?? new Prisma.Decimal(0)).add(item.amount));
+    place.total = place.total.add(item.amount);
+    placeMap.set(placeKey, place);
   }
 
-  return [...groups.entries()]
-    .map(([label, amount]) => ({ label, amount: toNumber(amount) }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+  const labels = [...labelSet].sort((a, b) => a.localeCompare(b));
+  const series = [...placeMap.values()]
+    .sort((a, b) => Number(b.total.sub(a.total).toFixed(2)) || a.name.localeCompare(b.name, "zh-CN"))
+    .map((place) => ({
+      name: place.name,
+      values: labels.map((label) => toNumber(place.buckets.get(label) ?? new Prisma.Decimal(0))),
+    }));
+
+  return { labels, series };
+}
+
+function categoryCommodityStacks(lines: IncludedLine[]): AnalyticsCategoryStack {
+  const categoryOrder = dimensionRows(lines, (item) => ({
+    id: item.line.commodity.category.id,
+    name: item.line.commodity.category.name,
+  })).map((row) => row.name);
+
+  const categoryCommodityAmount = new Map<string, Map<string, Prisma.Decimal>>();
+  const commodityTotals = new Map<string, { name: string; total: Prisma.Decimal }>();
+
+  for (const item of lines) {
+    const categoryName = item.line.commodity.category.name;
+    const commodityName = item.line.commodity.name;
+    const commodityInCategory =
+      categoryCommodityAmount.get(categoryName) ?? new Map<string, Prisma.Decimal>();
+    commodityInCategory.set(
+      commodityName,
+      (commodityInCategory.get(commodityName) ?? new Prisma.Decimal(0)).add(item.amount),
+    );
+    categoryCommodityAmount.set(categoryName, commodityInCategory);
+
+    const commodityTotal = commodityTotals.get(commodityName) ?? {
+      name: commodityName,
+      total: new Prisma.Decimal(0),
+    };
+    commodityTotal.total = commodityTotal.total.add(item.amount);
+    commodityTotals.set(commodityName, commodityTotal);
+  }
+
+  const series = [...commodityTotals.values()]
+    .sort((a, b) => Number(b.total.sub(a.total).toFixed(2)) || a.name.localeCompare(b.name, "zh-CN"))
+    .map((commodity) => ({
+      name: commodity.name,
+      values: categoryOrder.map((category) =>
+        toNumber(categoryCommodityAmount.get(category)?.get(commodity.name) ?? new Prisma.Decimal(0)),
+      ),
+    }))
+    .filter((seriesItem) => seriesItem.values.some((value) => value > 0));
+
+  return {
+    categories: categoryOrder,
+    series,
+  };
 }
 
 export function buildAnalyticsWorkbench(
@@ -280,22 +358,23 @@ export function buildAnalyticsWorkbench(
   return {
     filters,
     kpis: buildKpis(lines),
-    byCategory: dimensionRows(lines, (item) => ({
-      id: item.line.commodity.category.id,
-      name: item.line.commodity.category.name,
-    })),
-    byCommodity: dimensionRows(
+    topCommodities: dimensionRows(
       lines,
       (item) => ({
         id: item.line.commodity.id,
         name: item.line.commodity.name,
       }),
-      50,
+      10,
     ),
-    byPurchasePlace: dimensionRows(lines, (item) => ({
+    categoryShare: dimensionRows(lines, (item) => ({
+      id: item.line.commodity.category.id,
+      name: item.line.commodity.category.name,
+    })),
+    purchasePlaceShare: dimensionRows(lines, (item) => ({
       id: `${item.purchasePlace.place}\u0000${item.purchasePlace.marketName}`,
       name: `${item.purchasePlace.place} / ${item.purchasePlace.marketName}`,
     })),
-    trend: trendRows(lines, filters.granularity),
+    categoryStacks: categoryCommodityStacks(lines),
+    trend: trendSeriesByPurchasePlace(lines, filters.granularity),
   };
 }

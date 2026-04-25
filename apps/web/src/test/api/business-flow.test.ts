@@ -66,27 +66,49 @@ describe("主数据与订单 API 最小成功路径", () => {
     };
 
     expect(categoriesBody.items.map((item) => item.name)).toEqual(
-      expect.arrayContaining(["水果", "蔬菜", "副食", "肉类"]),
+      expect.arrayContaining(["时令水果", "叶菜豆品", "粮油干货", "鲜肉水产"]),
     );
     expect(unitsBody.items.map((item) => item.name)).toEqual(
-      expect.arrayContaining(["斤", "件", "箱"]),
+      expect.arrayContaining(["斤", "件", "箱", "袋", "桶"]),
     );
     expect(commoditiesBody.items.map((item) => item.name)).toEqual(
-      expect.arrayContaining(["苹果", "生菜", "米", "面", "猪肉"]),
+      expect.arrayContaining([
+        "麒麟西瓜",
+        "海南芒果",
+        "盒装蓝莓",
+        "上海青",
+        "洪湖莲藕",
+        "北豆腐",
+        "五常大米",
+        "鲁花菜籽油",
+        "前腿猪肉",
+        "鸡胸肉",
+        "基围虾",
+      ]),
     );
     expect(
       purchasePlacesBody.items.some(
-        (item) => item.place === "武汉" && item.marketName === "中心港市场",
+        (item) => item.place === "武汉" && item.marketName === "白沙洲农副产品大市场",
       ),
     ).toBe(true);
     expect(
       purchasePlacesBody.items.some(
-        (item) => item.place === "洛阳" && item.marketName === "宏进市场",
+        (item) => item.place === "长沙" && item.marketName === "红星全球农批中心",
+      ),
+    ).toBe(true);
+    expect(
+      purchasePlacesBody.items.some(
+        (item) => item.place === "郑州" && item.marketName === "万邦国际农产品物流城",
       ),
     ).toBe(true);
     expect(ordersBody.items.length).toBeGreaterThanOrEqual(2);
     expect(ordersBody.items.map((item) => item.name)).toEqual(
-      expect.arrayContaining(["武汉中心港到货单", "洛阳宏进备货单"]),
+      expect.arrayContaining([
+        "2026-03-24 白沙洲门店周初补货单",
+        "2026-04-15 红星后厨稳价采购单",
+        "2026-04-20 万邦周末促销备货单",
+        "2026-04-22 白沙洲月末滚动补货单",
+      ]),
     );
   });
 
@@ -304,6 +326,7 @@ describe("主数据与订单 API 最小成功路径", () => {
         commodityId: com.item.id,
         count: 3,
         price: 10.5,
+        lineTotal: 32,
       },
       cookie,
     );
@@ -670,5 +693,61 @@ describe("主数据与订单 API 最小成功路径", () => {
       cookie,
     );
     expect(comPatch.status).toBe(409);
+  });
+
+  it("订单明细创建与更新按传入 lineTotal 原样持久化", async () => {
+    const baseUrl = inject("testBaseUrl");
+    const cookie = await loginAsAdmin(baseUrl);
+    const suf = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const purchasePlaceId = await createPurchasePlace(baseUrl, cookie, `${suf}-line-total`);
+
+    const createOrder = await postJsonWithCookie(
+      baseUrl,
+      "/api/orders",
+      { name: `line-total-order-${suf}`, purchasePlaceId },
+      cookie,
+    );
+    expect(createOrder.status).toBe(201);
+    const orderBody = (await createOrder.json()) as { item: { id: string } };
+
+    const commoditiesRes = await fetchWithCookie(baseUrl, "/api/commodities", {}, cookie);
+    expect(commoditiesRes.status).toBe(200);
+    const commoditiesBody = (await commoditiesRes.json()) as {
+      items: { id: string }[];
+    };
+    const commodityId = commoditiesBody.items[0]?.id;
+    expect(commodityId).toBeTruthy();
+
+    const createLine = await postJsonWithCookie(
+      baseUrl,
+      "/api/order-lines",
+      {
+        orderId: orderBody.item.id,
+        commodityId,
+        count: 3,
+        price: 4.55,
+        lineTotal: 21.37,
+      },
+      cookie,
+    );
+    expect(createLine.status).toBe(201);
+    const createdLineBody = (await createLine.json()) as {
+      item: { id: string; lineTotal: string };
+    };
+    expect(Number(createdLineBody.item.lineTotal)).toBe(21.37);
+
+    const patchLine = await patchJsonWithCookie(
+      baseUrl,
+      `/api/order-lines/${createdLineBody.item.id}`,
+      {
+        lineTotal: 19.99,
+      },
+      cookie,
+    );
+    expect(patchLine.status).toBe(200);
+    const patchedLineBody = (await patchLine.json()) as {
+      item: { lineTotal: string };
+    };
+    expect(Number(patchedLineBody.item.lineTotal)).toBe(19.99);
   });
 });

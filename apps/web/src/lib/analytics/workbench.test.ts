@@ -120,7 +120,7 @@ describe("analytics workbench aggregation", () => {
       { now: new Date("2026-04-12T08:30:00.000Z") },
     );
 
-    expect(result.byCategory.map((row) => [row.name, row.amount])).toEqual([
+    expect(result.categoryShare.map((row) => [row.name, row.amount])).toEqual([
       ["副食", 30],
       ["水果", 25],
     ]);
@@ -137,16 +137,16 @@ describe("analytics workbench aggregation", () => {
     const top = buildAnalyticsWorkbench(
       [order("o1", "2026-04-10T10:00:00.000Z", lines)],
       { now: new Date("2026-04-12T08:30:00.000Z") },
-    ).byCommodity;
+    ).topCommodities;
 
-    expect(top).toHaveLength(50);
+    expect(top).toHaveLength(10);
     expect(top[0]).toMatchObject({ name: "商品-54", amount: 55 });
-    expect(top.at(-1)).toMatchObject({ name: "商品-5", amount: 6 });
+    expect(top.at(-1)).toMatchObject({ name: "商品-45", amount: 46 });
 
     const short = buildAnalyticsWorkbench(
       [order("o2", "2026-04-10T10:00:00.000Z", lines.slice(0, 3))],
       { now: new Date("2026-04-12T08:30:00.000Z") },
-    ).byCommodity;
+    ).topCommodities;
 
     expect(short).toHaveLength(3);
   });
@@ -170,7 +170,7 @@ describe("analytics workbench aggregation", () => {
       { now: new Date("2026-04-12T08:30:00.000Z") },
     );
 
-    expect(result.byPurchasePlace.map((row) => [row.name, row.amount])).toEqual([
+    expect(result.purchasePlaceShare.map((row) => [row.name, row.amount])).toEqual([
       ["洛阳 / 宏进市场", 40],
       ["武汉 / 中心港市场", 30],
     ]);
@@ -185,30 +185,39 @@ describe("analytics workbench aggregation", () => {
     const now = new Date("2026-04-12T08:30:00.000Z");
 
     expect(
-      buildAnalyticsWorkbench(rows, { now, granularity: "day" }).trend.map((row) => [
-        row.label,
-        row.amount,
-      ]),
-    ).toEqual([
-      ["2026-04-05", 10],
-      ["2026-04-06", 20],
-      ["2026-04-12", 30],
-    ]);
+      buildAnalyticsWorkbench(rows, { now, granularity: "day" }).trend,
+    ).toMatchObject({
+      labels: ["2026-04-05", "2026-04-06", "2026-04-12"],
+      series: [
+        {
+          name: "武汉 / 中心港市场",
+          values: [10, 20, 30],
+        },
+      ],
+    });
     expect(
-      buildAnalyticsWorkbench(rows, { now, granularity: "week" }).trend.map((row) => [
-        row.label,
-        row.amount,
-      ]),
+      buildAnalyticsWorkbench(rows, { now, granularity: "week" }).trend,
+    ).toMatchObject({
+      labels: ["2026-03-30", "2026-04-06"],
+      series: [
+        {
+          name: "武汉 / 中心港市场",
+          values: [10, 50],
+        },
+      ],
+    });
+    expect(
+      buildAnalyticsWorkbench(rows, { now, granularity: "month" }).trend,
     ).toEqual([
-      ["2026-03-30", 10],
-      ["2026-04-06", 50],
-    ]);
-    expect(buildAnalyticsWorkbench(rows, { now, granularity: "month" }).trend).toEqual([
-      { label: "2026-04", amount: 60 },
-    ]);
-    expect(buildAnalyticsWorkbench(rows, { now, granularity: "year" }).trend).toEqual([
-      { label: "2026", amount: 60 },
-    ]);
+      {
+        labels: ["2026-04"],
+        series: [{ name: "武汉 / 中心港市场", values: [60] }],
+      },
+    ][0]);
+    expect(buildAnalyticsWorkbench(rows, { now, granularity: "year" }).trend).toEqual({
+      labels: ["2026"],
+      series: [{ name: "武汉 / 中心港市场", values: [60] }],
+    });
   });
 
   it("无匹配数据时返回零值指标和空序列", () => {
@@ -222,9 +231,9 @@ describe("analytics workbench aggregation", () => {
       lineCount: 0,
       averageOrderAmount: 0,
     });
-    expect(result.byCategory).toEqual([]);
-    expect(result.byCommodity).toEqual([]);
-    expect(result.byPurchasePlace).toEqual([]);
-    expect(result.trend).toEqual([]);
+    expect(result.categoryShare).toEqual([]);
+    expect(result.topCommodities).toEqual([]);
+    expect(result.purchasePlaceShare).toEqual([]);
+    expect(result.trend).toEqual({ labels: [], series: [] });
   });
 });

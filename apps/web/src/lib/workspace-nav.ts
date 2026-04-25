@@ -41,7 +41,7 @@ export const workspaceNavEntries: WorkspaceNavEntry[] = [
 ];
 
 export const workspaceHome: WorkspaceNavItem = workspaceNavEntries[0] as WorkspaceNavItem;
-const workspaceRootBreadcrumb: WorkspaceBreadcrumbItem = { label: workspaceHome.label };
+const orderDetailPrefix = "/order/list/";
 
 function isGroup(entry: WorkspaceNavEntry): entry is WorkspaceNavGroup {
   return "children" in entry;
@@ -69,7 +69,14 @@ export function defaultOpenKeysForPath(pathname: string): string[] {
 
 export function getWorkspaceBreadcrumbs(pathname: string): WorkspaceBreadcrumbItem[] {
   if (pathname === workspaceHome.href || pathname.startsWith(`${workspaceHome.href}/`)) {
-    return [workspaceRootBreadcrumb];
+    return [{ label: workspaceHome.label }];
+  }
+
+  if (pathname.startsWith(orderDetailPrefix)) {
+    return [
+      { label: "订单管理" },
+      { label: "订单详情" },
+    ];
   }
 
   for (const entry of workspaceNavEntries) {
@@ -83,19 +90,14 @@ export function getWorkspaceBreadcrumbs(pathname: string): WorkspaceBreadcrumbIt
     }
 
     const breadcrumbs: WorkspaceBreadcrumbItem[] = [
-      { ...workspaceRootBreadcrumb, href: workspaceHome.href },
       { label: entry.label },
       { label: activeChild.label, href: activeChild.href },
     ];
 
-    if (pathname.startsWith("/order/list/")) {
-      breadcrumbs.push({ label: "订单详情" });
-    }
-
     return breadcrumbs;
   }
 
-  return [{ label: workspaceHome.label, href: workspaceHome.href }];
+  return [{ label: workspaceHome.label }];
 }
 
 export function normalizeWorkspaceBreadcrumbs(

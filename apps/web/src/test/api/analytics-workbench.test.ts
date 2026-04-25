@@ -41,7 +41,7 @@ describe("GET /api/analytics/workbench", () => {
     expect(mocks.findMany).not.toHaveBeenCalled();
   });
 
-  it("已登录默认请求返回最近一个月范围、核心指标、维度聚合和趋势字段", async () => {
+  it("已登录默认请求返回最近一个月范围、核心指标和工作台图表字段", async () => {
     mocks.requireUser.mockResolvedValueOnce({ id: "admin", username: "admin" });
     mocks.findMany.mockResolvedValueOnce([]);
     vi.useFakeTimers();
@@ -60,10 +60,11 @@ describe("GET /api/analytics/workbench", () => {
       lineCount: 0,
       averageOrderAmount: 0,
     });
-    expect(body.byCategory).toEqual([]);
-    expect(body.byCommodity).toEqual([]);
-    expect(body.byPurchasePlace).toEqual([]);
-    expect(body.trend).toEqual([]);
+    expect(body.topCommodities).toEqual([]);
+    expect(body.categoryShare).toEqual([]);
+    expect(body.purchasePlaceShare).toEqual([]);
+    expect(body.categoryStacks).toEqual({ categories: [], series: [] });
+    expect(body.trend).toEqual({ labels: [], series: [] });
   });
 
   it("将时间范围筛选应用到订单创建时间查询条件", async () => {
@@ -89,7 +90,7 @@ describe("GET /api/analytics/workbench", () => {
     );
   });
 
-  it("响应包含商品 Top 50、分类占比和进货地占比字段", async () => {
+  it("响应包含商品 Top10、分类堆叠、分类占比、进货地占比和分进货地趋势字段", async () => {
     mocks.requireUser.mockResolvedValueOnce({ id: "admin", username: "admin" });
     mocks.findMany.mockResolvedValueOnce([
       {
@@ -122,21 +123,34 @@ describe("GET /api/analytics/workbench", () => {
     );
     const body = await res.json();
 
-    expect(body.byCommodity).toHaveLength(50);
-    expect(body.byCommodity[0]).toMatchObject({
+    expect(body.topCommodities).toHaveLength(10);
+    expect(body.topCommodities[0]).toMatchObject({
       name: "商品-50",
       amount: 51,
     });
-    expect(body.byCategory[0]).toEqual(
+    expect(body.categoryShare[0]).toEqual(
       expect.objectContaining({
         name: expect.any(String),
         share: expect.any(Number),
       }),
     );
-    expect(body.byPurchasePlace[0]).toEqual(
+    expect(body.purchasePlaceShare[0]).toEqual(
       expect.objectContaining({
         name: "武汉 / 中心港市场",
         share: 100,
+      }),
+    );
+    expect(body.categoryStacks.categories).toEqual(["水果", "副食"]);
+    expect(body.categoryStacks.series[0]).toEqual(
+      expect.objectContaining({
+        name: "商品-50",
+        values: [51, 0],
+      }),
+    );
+    expect(body.trend.labels).toEqual(["2026-04-10"]);
+    expect(body.trend.series[0]).toEqual(
+      expect.objectContaining({
+        name: "武汉 / 中心港市场",
       }),
     );
   });

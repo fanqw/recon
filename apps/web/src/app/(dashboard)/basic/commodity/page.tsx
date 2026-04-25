@@ -11,12 +11,15 @@ import {
   Typography,
   type TableColumnProps,
 } from "@arco-design/web-react";
+import { FieldErrorText } from "@/components/form/FieldErrorText";
+import { RequiredFieldLabel } from "@/components/form/RequiredFieldLabel";
 import { ListTableEmptyState } from "@/components/list-table-empty";
 import {
   isDeleteBlockCode,
   messageForDeleteBlockCode,
 } from "@/lib/delete-block-codes";
 import { formatDateTime } from "@/lib/datetime";
+import { validateCommodityFields } from "@/lib/forms/master-data-validation";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -70,6 +73,9 @@ export default function CommodityPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<
+    Partial<Record<"name" | "categoryId" | "unitId", string>>
+  >({});
 
   /** `options` 数据驱动，避免 Select.Option 子节点在 React 19 下触发 element.ref 弃用警告 */
   const categorySelectOptions = useMemo(
@@ -199,8 +205,9 @@ export default function CommodityPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!categoryId.trim() || !unitId.trim()) {
-      setError("请选择分类与单位");
+    const nextErrors = validateCommodityFields({ name, categoryId, unitId });
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
       return;
     }
     const resolvedCategoryId = await ensureCategoryId(categoryId);
@@ -247,6 +254,7 @@ export default function CommodityPage() {
     setCategoryId("");
     setUnitId("");
     setEditingId(null);
+    setFieldErrors({});
     setModalOpen(false);
     await loadList();
   }
@@ -258,6 +266,7 @@ export default function CommodityPage() {
     setCategoryId("");
     setUnitId("");
     setError(null);
+    setFieldErrors({});
     setModalOpen(true);
   }
 
@@ -268,6 +277,7 @@ export default function CommodityPage() {
     setCategoryId(row.category.id);
     setUnitId(row.unit.id);
     setError(null);
+    setFieldErrors({});
     setModalOpen(true);
   }
 
@@ -289,28 +299,30 @@ export default function CommodityPage() {
   }
 
   const columns: TableColumnProps<Commodity>[] = [
-    { title: "名称", dataIndex: "name", width: 180 },
+    { title: "名称", dataIndex: "name", width: 180, fixed: "left" },
     { title: "分类", width: 140, render: (_, row) => row.category.name },
     { title: "单位", width: 120, render: (_, row) => row.unit.name },
     { title: "备注", width: 220, render: (_, row) => row.desc ?? "—" },
     {
       title: "创建时间",
       dataIndex: "createdAt",
-      width: 170,
+      width: 156,
       render: (_, row) => formatDateTime(row.createdAt),
     },
     {
       title: "更新时间",
       dataIndex: "updatedAt",
-      width: 170,
+      width: 156,
       render: (_, row) => formatDateTime(row.updatedAt),
     },
     {
       title: "操作",
       fixed: "right",
-      width: 96,
+      width: 88,
+      cellStyle: { paddingLeft: 12, paddingRight: 12 },
+      headerCellStyle: { paddingLeft: 12, paddingRight: 12 },
       render: (_, row) => (
-        <Space size={4}>
+        <Space size={12}>
           <Button size="mini" type="text" onClick={() => openEdit(row)}>编辑</Button>
           <Button size="mini" status="danger" type="text" onClick={() => void removeRow(row.id)}>删除</Button>
         </Space>
@@ -319,18 +331,18 @@ export default function CommodityPage() {
   ];
 
   return (
-    <Card
-      title={<Typography.Title heading={6}>商品</Typography.Title>}
-      extra={<Button type="primary" onClick={openCreate}>新建</Button>}
-    >
+    <Card>
       {error ? <Typography.Text type="error">{error}</Typography.Text> : null}
-      <div className={error ? "my-3 max-w-md" : "mb-3 max-w-md"}>
-        <Input
-          allowClear
-          value={query}
-          onChange={handleQueryChange}
-          placeholder="搜索名称、分类、单位或备注"
-        />
+      <div className={error ? "my-3 flex items-center justify-between gap-3" : "mb-3 flex items-center justify-between gap-3"}>
+        <div className="max-w-md flex-1">
+          <Input
+            allowClear
+            value={query}
+            onChange={handleQueryChange}
+            placeholder="搜索名称、分类、单位或备注"
+          />
+        </div>
+        <Button type="primary" onClick={openCreate}>新建</Button>
       </div>
       <Table
         rowKey="id"
@@ -344,10 +356,23 @@ export default function CommodityPage() {
 
       <Modal title={editingId ? "编辑商品" : "新建商品"} visible={modalOpen} onCancel={() => setModalOpen(false)} footer={null}>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <label className="text-sm text-[#4e5969]">名称</label>
-          <Input value={name} onChange={setName} placeholder="请输入商品名称" required />
-          <label className="text-sm text-[#4e5969]">分类</label>
+          <RequiredFieldLabel htmlFor="commodity-name" label="名称" />
+          <Input
+            id="commodity-name"
+            value={name}
+            onChange={(value) => {
+              setName(value);
+              if (fieldErrors.name && value.trim()) {
+                setFieldErrors((prev) => ({ ...prev, name: undefined }));
+              }
+            }}
+            placeholder="请输入商品名称"
+            status={fieldErrors.name ? "error" : undefined}
+          />
+          <FieldErrorText message={fieldErrors.name} />
+          <RequiredFieldLabel htmlFor="commodity-category" label="分类" />
           <Select
+            id="commodity-category"
             allowCreate
             data-testid="commodity-category-select"
             filterOption={optionMatches}
@@ -355,10 +380,18 @@ export default function CommodityPage() {
             placeholder="请选择或输入分类"
             showSearch
             value={categoryId || undefined}
-            onChange={(v) => setCategoryId(String(v))}
+            status={fieldErrors.categoryId ? "error" : undefined}
+            onChange={(v) => {
+              setCategoryId(String(v));
+              if (fieldErrors.categoryId && String(v).trim()) {
+                setFieldErrors((prev) => ({ ...prev, categoryId: undefined }));
+              }
+            }}
           />
-          <label className="text-sm text-[#4e5969]">单位</label>
+          <FieldErrorText message={fieldErrors.categoryId} />
+          <RequiredFieldLabel htmlFor="commodity-unit" label="单位" />
           <Select
+            id="commodity-unit"
             allowCreate
             data-testid="commodity-unit-select"
             filterOption={optionMatches}
@@ -366,9 +399,16 @@ export default function CommodityPage() {
             placeholder="请选择或输入单位"
             showSearch
             value={unitId || undefined}
-            onChange={(v) => setUnitId(String(v))}
+            status={fieldErrors.unitId ? "error" : undefined}
+            onChange={(v) => {
+              setUnitId(String(v));
+              if (fieldErrors.unitId && String(v).trim()) {
+                setFieldErrors((prev) => ({ ...prev, unitId: undefined }));
+              }
+            }}
           />
-          <label className="text-sm text-[#4e5969]">备注（可选）</label>
+          <FieldErrorText message={fieldErrors.unitId} />
+          <label className="form-field-label" htmlFor="commodity-desc">备注（可选）</label>
           <Input.TextArea value={desc} onChange={setDesc} placeholder="请输入备注" rows={3} />
           <div className="flex justify-end gap-2">
             <Button onClick={() => setModalOpen(false)}>取消</Button>

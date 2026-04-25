@@ -68,22 +68,11 @@ export function DashboardNav() {
   return (
     <aside
       aria-label="主导航区域"
-      className="dashboard-sidebar flex shrink-0 flex-col border-r transition-[width] duration-200"
+      className="dashboard-sidebar relative flex shrink-0 flex-col border-r transition-[width] duration-200"
       data-collapsed={String(collapsed)}
       data-testid="dashboard-sidebar"
     >
-      <div className="flex h-14 items-center justify-end px-3">
-        <Tooltip content={collapsed ? "展开侧栏" : "收起侧栏"} position="right">
-          <Button
-            aria-label={collapsed ? "展开侧栏" : "收起侧栏"}
-            icon={collapsed ? <IconMenuUnfold /> : <IconMenuFold />}
-            shape="circle"
-            size="small"
-            onClick={() => setCollapsed((value) => !value)}
-          />
-        </Tooltip>
-      </div>
-      <nav aria-label="主导航" className="py-2">
+      <nav aria-label="主导航" className="flex-1 overflow-hidden pt-0 pb-14">
         <Menu
           collapse={collapsed}
           defaultOpenKeys={defaultOpenKeysForPath(pathname)}
@@ -106,6 +95,17 @@ export function DashboardNav() {
           )}
         </Menu>
       </nav>
+      <div className="absolute right-3 bottom-3">
+        <Tooltip content={collapsed ? "展开侧栏" : "收起侧栏"} position="right">
+          <Button
+            aria-label={collapsed ? "展开侧栏" : "收起侧栏"}
+            icon={collapsed ? <IconMenuUnfold /> : <IconMenuFold />}
+            shape="circle"
+            size="small"
+            onClick={() => setCollapsed((value) => !value)}
+          />
+        </Tooltip>
+      </div>
     </aside>
   );
 }

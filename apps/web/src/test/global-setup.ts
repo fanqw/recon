@@ -1,20 +1,16 @@
 import { execSync, spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
 import { createServer } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { TestProject } from "vitest/node";
 import { registerTestServerProcess, stopTestServer } from "./global-teardown";
+import {
+  loadWebEnv,
+  resetDatabaseToSeed,
+  withTestDatabaseEnv,
+} from "./test-db";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-/** 与仓库根目录 `docker-compose.yml` 中 postgres 服务默认账号一致，便于本地零配置跑集成测。 */
-const DEFAULT_TEST_DATABASE_URL =
-  "postgresql://recon:recon@127.0.0.1:5432/recon";
-
-/** iron-session 要求足够长的密码；仅用于 Vitest 自启子进程，生产须使用强随机值。 */
-const DEFAULT_TEST_SESSION_SECRET =
-  "vitest-recon-session-secret-32-characters-min!!";
 
 /**
  * 在启动 Next 子进程前迁移并种子，避免 `login` 等接口因空库/缺表返回 500。
@@ -34,31 +30,6 @@ function prepareDatabaseForVitest(webRoot: string, env: NodeJS.ProcessEnv): void
 /**
  * 读取 `apps/web/.env` 键值并合并进环境（Vitest 进程默认不会自动加载该文件，子进程需显式注入 `DATABASE_URL` 等）。
  */
-function loadWebEnv(webRoot: string): NodeJS.ProcessEnv {
-  const env = { ...process.env };
-  try {
-    const raw = readFileSync(path.join(webRoot, ".env"), "utf8");
-    for (const line of raw.split("\n")) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) continue;
-      const eq = trimmed.indexOf("=");
-      if (eq <= 0) continue;
-      const key = trimmed.slice(0, eq).trim();
-      let val = trimmed.slice(eq + 1).trim();
-      if (
-        (val.startsWith('"') && val.endsWith('"')) ||
-        (val.startsWith("'") && val.endsWith("'"))
-      ) {
-        val = val.slice(1, -1);
-      }
-      env[key] = val;
-    }
-  } catch {
-    /* 无 .env 时依赖调用方本机已导出的环境变量 */
-  }
-  return env;
-}
-
 /**
  * 在本机绑定随机可用端口（先 listen 0 再释放）。
  */
@@ -135,11 +106,14 @@ export default async function setup(project: TestProject): Promise<() => Promise
   const webRoot = path.resolve(__dirname, "../..");
   const reuseUrl =
     process.env.RECON_TEST_BASE_URL?.trim() || "http://localhost:3000";
+  const sharedEnv = withTestDatabaseEnv(loadWebEnv(webRoot));
 
   if (await tryUseExistingDevServer(reuseUrl)) {
     const baseURL = reuseUrl.replace(/\/$/, "");
     project.provide("testBaseUrl", baseURL);
-    return async () => {};
+    return async () => {
+      resetDatabaseToSeed(webRoot, sharedEnv);
+    };
   }
 
   const port = await getFreePort();
@@ -148,13 +122,11 @@ export default async function setup(project: TestProject): Promise<() => Promise
   /** 避免子进程继承 Vitest 注入的 `NODE_OPTIONS`（会导致 Next 启动失败）。 */
   const parentEnv = { ...process.env };
   delete parentEnv.NODE_OPTIONS;
-  const env: NodeJS.ProcessEnv = {
+  const env: NodeJS.ProcessEnv = withTestDatabaseEnv({
     ...parentEnv,
     ...childEnv,
     NEXT_TELEMETRY_DISABLED: "1",
-  };
-  env.DATABASE_URL = env.DATABASE_URL || DEFAULT_TEST_DATABASE_URL;
-  env.SESSION_SECRET = env.SESSION_SECRET || DEFAULT_TEST_SESSION_SECRET;
+  });
 
   prepareDatabaseForVitest(webRoot, env);
 
@@ -200,5 +172,6 @@ export default async function setup(project: TestProject): Promise<() => Promise
 
   return async () => {
     await stopTestServer();
+    resetDatabaseToSeed(webRoot, env);
   };
 }

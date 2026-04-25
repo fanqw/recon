@@ -7,6 +7,8 @@ const sessionSecret = process.env.SESSION_SECRET?.trim() || randomBytes(32).toSt
 export default defineConfig({
   testDir: "./e2e",
   timeout: 60_000,
+  globalSetup: "./e2e/global-setup.mjs",
+  globalTeardown: "./e2e/global-teardown.mjs",
   use: { baseURL: devOrigin },
   webServer: {
     command: "pnpm dev",

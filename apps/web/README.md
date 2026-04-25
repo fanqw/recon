@@ -74,6 +74,16 @@ seed 行为：
 - 删除业务数据后重建基线数据，清理范围包括订单明细、订单、商品、分类、单位与进货地。
 - 不用于保留本地临时调试数据；如需保留，请在执行 seed 前自行备份。
 
+### MongoDB 导出数据导入
+
+生产 MongoDB `mongodump` 导出的 `.bson.gz` 文件可通过以下命令导入当前 Prisma/PostgreSQL 数据库：
+
+```bash
+pnpm --filter web db:import:mongo -- --replace --dump-dir=/path/to/repository
+```
+
+导入脚本会清空 `User`、订单、订单明细、商品、分类、单位与进货地表，保留 Mongo `_id` 作为 v2 字符串主键；v1 没有进货地字段，旧订单统一挂到 `历史导入 / 生产 MongoDB 导入`。执行前请确认 `apps/web/.env` 指向正确目标库。
+
 当前中文语义化样本包括：
 
 - 分类：`水果`、`蔬菜`、`副食`、`肉类`（与 OpenSpec 种子约定一致）。

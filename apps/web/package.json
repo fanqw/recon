@@ -10,12 +10,14 @@
     "prisma": "prisma",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "db:import:mongo": "tsx prisma/import-mongo-dump.ts"
   },
   "dependencies": {
     "@arco-design/web-react": "^2.66.13",
     "@prisma/client": "^6.0.0",
     "bcryptjs": "^2.4.3",
+    "bson": "^7.2.0",
     "echarts": "^6.0.0",
     "exceljs": "^4.4.0",
     "iron-session": "^8.0.0",

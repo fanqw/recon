@@ -7,7 +7,14 @@ import {
   Modal,
   Typography,
 } from "@arco-design/web-react";
+import { FieldErrorText } from "@/components/form/FieldErrorText";
+import { RequiredFieldLabel } from "@/components/form/RequiredFieldLabel";
 import { ListTableEmptyState } from "@/components/list-table-empty";
+import { validateOrderLineFields } from "@/lib/forms/master-data-validation";
+import {
+  calculateEditableLineTotal,
+  hasManualLineTotalOverride,
+} from "@/lib/order-lines/line-total";
 import {
   MasterDataCombobox,
   type MasterDataListItem,
@@ -37,12 +44,6 @@ function trimOrEmpty(s: string): string {
   return s.trim();
 }
 
-function defaultLineTotalNum(count: number, price: number): number {
-  if (!Number.isFinite(count) || !Number.isFinite(price)) return 0;
-  const rounded = Math.round((price * count + Number.EPSILON) * 100) / 100;
-  return Number(rounded.toFixed(2));
-}
-
 function formatLineTotal(value: number): string {
   if (!Number.isFinite(value)) return "";
   return String(value);
@@ -68,6 +69,10 @@ export default function OrderDetailPage() {
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
   const [lineModalOpen, setLineModalOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [lineTotalManuallyEdited, setLineTotalManuallyEdited] = useState(false);
+  const [lineFieldErrors, setLineFieldErrors] = useState<
+    Partial<Record<"commodity" | "category" | "unit" | "count" | "price" | "lineTotal", string>>
+  >({});
 
   const loadOrder = useCallback(async () => {
     const res = await fetch(`/api/orders/${orderId}`, { credentials: "include" });
@@ -104,15 +109,18 @@ export default function OrderDetailPage() {
 
   const countNum = parseInt(lineCount, 10);
   const priceNum = parseFloat(linePrice);
-  const autoTotal = defaultLineTotalNum(countNum, priceNum);
+  const autoTotal = calculateEditableLineTotal(countNum, priceNum);
 
   useEffect(() => {
+    if (lineTotalManuallyEdited) {
+      return;
+    }
     if (Number.isNaN(countNum) || Number.isNaN(priceNum)) {
       setLineTotalInput("");
       return;
     }
     setLineTotalInput(formatLineTotal(autoTotal));
-  }, [countNum, priceNum, autoTotal]);
+  }, [countNum, priceNum, autoTotal, lineTotalManuallyEdited]);
 
   function resetLineForm() {
     setCategorySel(null);
@@ -123,6 +131,8 @@ export default function OrderDetailPage() {
     setLineTotalInput("");
     setLineDesc("");
     setEditingLineId(null);
+    setLineTotalManuallyEdited(false);
+    setLineFieldErrors({});
   }
 
   function validateNewLineMasterNames(): string | null {
@@ -150,18 +160,22 @@ export default function OrderDetailPage() {
   async function handleLineSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const count = parseInt(lineCount, 10);
-    const price = parseFloat(linePrice);
-    if (Number.isNaN(count) || count < 1) {
-      setError("数量须为正整数");
-      return;
-    }
-    if (Number.isNaN(price)) {
-      setError("单价无效");
+    const nextFieldErrors = validateOrderLineFields({
+      commoditySelected: !!commoditySel,
+      categorySelected: !!categorySel,
+      unitSelected: !!unitSel,
+      lineCount,
+      linePrice,
+      lineTotal: lineTotalInput,
+    });
+    setLineFieldErrors(nextFieldErrors);
+    if (Object.keys(nextFieldErrors).length > 0) {
       return;
     }
 
-    const lineTotalVal = defaultLineTotalNum(count, price);
+    const count = parseInt(lineCount, 10);
+    const price = parseFloat(linePrice);
+    const lineTotalVal = parseFloat(lineTotalInput);
 
     if (editingLineId) {
       const res = await fetch(`/api/order-lines/${editingLineId}`, {
@@ -223,9 +237,13 @@ export default function OrderDetailPage() {
     setUnitSel({ kind: "id", id: row.unit.id, label: row.unit.name });
     setLineCount(String(row.count));
     setLinePrice(String(row.price));
-    setLineTotalInput(formatLineTotal(defaultLineTotalNum(row.count, row.price)));
+    setLineTotalInput(formatLineTotal(row.line_total));
     setLineDesc(row.desc ?? "");
+    setLineTotalManuallyEdited(
+      hasManualLineTotalOverride(row.count, row.price, row.line_total),
+    );
     setError(null);
+    setLineFieldErrors({});
     setLineModalOpen(true);
   }
 
@@ -277,56 +295,136 @@ export default function OrderDetailPage() {
 
   return (
     <div className="space-y-3">
-      <Card >
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="grid min-w-0 flex-1 gap-x-4 gap-y-1 text-sm md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-            <div className="flex min-w-0 gap-1">
-              <Typography.Text type="secondary" className="shrink-0">订单名：</Typography.Text>
-              <Typography.Text className="min-w-0 truncate font-medium">{order.name}</Typography.Text>
-            </div>
-            <div className="flex min-w-0 gap-1">
-              <Typography.Text type="secondary" className="shrink-0">进货地：</Typography.Text>
-              <Typography.Text className="min-w-0 truncate">
-                {order.purchasePlace.place} / {order.purchasePlace.marketName}
-              </Typography.Text>
-            </div>
-            <div className="flex min-w-0 gap-1 md:col-span-2">
-              <Typography.Text type="secondary" className="shrink-0">备注：</Typography.Text>
-              <Typography.Text className="min-w-0 truncate">{order.desc || "—"}</Typography.Text>
-            </div>
+      <Card>
+        <div className="grid min-w-0 gap-x-4 gap-y-2 text-sm md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+          <div className="flex min-w-0 gap-1">
+            <Typography.Text type="secondary" className="shrink-0">订单名：</Typography.Text>
+            <Typography.Text className="min-w-0 truncate font-medium">{order.name}</Typography.Text>
           </div>
-          <div className="flex shrink-0 flex-wrap gap-2">
-            <Link href="/order/list">
-              <Button>返回</Button>
-            </Link>
-            <Button type="primary" onClick={startCreateLine}>新增商品</Button>
-            <Button onClick={() => void handleExportExcel()} loading={exporting} disabled={lines.length === 0}>导出 Excel</Button>
+          <div className="flex min-w-0 gap-1">
+            <Typography.Text type="secondary" className="shrink-0">进货地：</Typography.Text>
+            <Typography.Text className="min-w-0 truncate">
+              {order.purchasePlace.place} / {order.purchasePlace.marketName}
+            </Typography.Text>
+          </div>
+          <div className="flex min-w-0 gap-1 md:col-span-2">
+            <Typography.Text type="secondary" className="shrink-0">备注：</Typography.Text>
+            <Typography.Text className="min-w-0 truncate">{order.desc || "—"}</Typography.Text>
           </div>
         </div>
         {error ? <Typography.Text type="error" className="mt-2 block">{error}</Typography.Text> : null}
       </Card>
 
-      {lines.length === 0 ? (
-        <div className="rounded-lg border border-[#e5e6eb] bg-[var(--surface)]">
-          <ListTableEmptyState message="暂无商品，请点击「新增商品」添加。" />
+      <Card>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/order/list">
+            <Button>返回</Button>
+          </Link>
+          <Button type="primary" onClick={startCreateLine}>新增商品</Button>
+          <Button onClick={() => void handleExportExcel()} loading={exporting} disabled={lines.length === 0}>导出 Excel</Button>
         </div>
+      </Card>
+
+      {lines.length === 0 ? (
+        <Card>
+          <ListTableEmptyState message="暂无商品，请点击「新增商品」添加。" />
+        </Card>
       ) : (
-        <OrderDetailTable lines={lines} onEdit={startEditLine} onDelete={(id) => void removeLine(id)} />
+        <Card>
+          <OrderDetailTable lines={lines} onEdit={startEditLine} onDelete={(id) => void removeLine(id)} />
+        </Card>
       )}
 
       <Modal title={editingLineId ? "编辑商品" : "新增商品"} visible={lineModalOpen} onCancel={() => setLineModalOpen(false)} footer={null}>
         <form onSubmit={handleLineSubmit} className="flex flex-col gap-3">
-          <MasterDataCombobox label="商品" apiPath="/api/commodities" disabled={!!editingLineId} value={commoditySel} onChange={setCommoditySel} onPickCommodity={onPickCommodity} testId="order-line-commodity-select" />
-          <MasterDataCombobox label="分类" apiPath="/api/categories" disabled={!!editingLineId} value={categorySel} onChange={setCategorySel} testId="order-line-category-select" />
-          <MasterDataCombobox label="单位" apiPath="/api/units" disabled={!!editingLineId} value={unitSel} onChange={setUnitSel} testId="order-line-unit-select" />
+          <MasterDataCombobox
+            label="商品"
+            apiPath="/api/commodities"
+            disabled={!!editingLineId}
+            value={commoditySel}
+            onChange={(value) => {
+              setCommoditySel(value);
+              if (lineFieldErrors.commodity && value) {
+                setLineFieldErrors((prev) => ({ ...prev, commodity: undefined }));
+              }
+            }}
+            onPickCommodity={onPickCommodity}
+            testId="order-line-commodity-select"
+          />
+          <FieldErrorText message={lineFieldErrors.commodity} />
+          <MasterDataCombobox
+            label="分类"
+            apiPath="/api/categories"
+            disabled={!!editingLineId}
+            value={categorySel}
+            onChange={(value) => {
+              setCategorySel(value);
+              if (lineFieldErrors.category && value) {
+                setLineFieldErrors((prev) => ({ ...prev, category: undefined }));
+              }
+            }}
+            testId="order-line-category-select"
+          />
+          <FieldErrorText message={lineFieldErrors.category} />
+          <MasterDataCombobox
+            label="单位"
+            apiPath="/api/units"
+            disabled={!!editingLineId}
+            value={unitSel}
+            onChange={(value) => {
+              setUnitSel(value);
+              if (lineFieldErrors.unit && value) {
+                setLineFieldErrors((prev) => ({ ...prev, unit: undefined }));
+              }
+            }}
+            testId="order-line-unit-select"
+          />
+          <FieldErrorText message={lineFieldErrors.unit} />
 
-          <label htmlFor="order-line-count" className="text-sm text-[#4e5969]">数量</label>
-          <Input id="order-line-count" type="number" value={lineCount} onChange={setLineCount} required />
-          <label htmlFor="order-line-price" className="text-sm text-[#4e5969]">单价</label>
-          <Input id="order-line-price" type="number" value={linePrice} onChange={setLinePrice} required />
-          <label htmlFor="order-line-total" className="text-sm text-[#4e5969]">总金额</label>
-          <Input id="order-line-total" type="number" value={lineTotalInput} readOnly />
-          <label htmlFor="order-line-desc" className="text-sm text-[#4e5969]">备注（可选）</label>
+          <RequiredFieldLabel htmlFor="order-line-count" label="数量" />
+          <Input
+            id="order-line-count"
+            type="number"
+            value={lineCount}
+            onChange={(value) => {
+              setLineCount(value);
+              if (lineFieldErrors.count && value.trim()) {
+                setLineFieldErrors((prev) => ({ ...prev, count: undefined }));
+              }
+            }}
+            status={lineFieldErrors.count ? "error" : undefined}
+          />
+          <FieldErrorText message={lineFieldErrors.count} />
+          <RequiredFieldLabel htmlFor="order-line-price" label="单价" />
+          <Input
+            id="order-line-price"
+            type="number"
+            value={linePrice}
+            onChange={(value) => {
+              setLinePrice(value);
+              if (lineFieldErrors.price && value.trim()) {
+                setLineFieldErrors((prev) => ({ ...prev, price: undefined }));
+              }
+            }}
+            status={lineFieldErrors.price ? "error" : undefined}
+          />
+          <FieldErrorText message={lineFieldErrors.price} />
+          <RequiredFieldLabel htmlFor="order-line-total" label="总金额" />
+          <Input
+            id="order-line-total"
+            type="number"
+            value={lineTotalInput}
+            onChange={(value) => {
+              setLineTotalInput(value);
+              setLineTotalManuallyEdited(true);
+              if (lineFieldErrors.lineTotal && value.trim()) {
+                setLineFieldErrors((prev) => ({ ...prev, lineTotal: undefined }));
+              }
+            }}
+            status={lineFieldErrors.lineTotal ? "error" : undefined}
+          />
+          <FieldErrorText message={lineFieldErrors.lineTotal} />
+          <label htmlFor="order-line-desc" className="form-field-label">备注（可选）</label>
           <Input.TextArea
             id="order-line-desc"
             value={lineDesc}

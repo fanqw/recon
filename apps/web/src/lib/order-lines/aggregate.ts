@@ -44,14 +44,14 @@ export type OrderLineRowForUi = {
   unit: Unit;
 };
 
-function dec(d: Prisma.Decimal): Prisma.Decimal {
+function dec(d: Prisma.Decimal | number): Prisma.Decimal {
   return new Prisma.Decimal(d.toString());
 }
 
 /**
  * 将 Prisma.Decimal 安全转为 number（用于响应里的 `price` 标量）。
  */
-function decimalToNumber(d: Prisma.Decimal): number {
+function decimalToNumber(d: Prisma.Decimal | number): number {
   return dec(d).toNumber();
 }
 
@@ -59,14 +59,20 @@ function decimalToNumber(d: Prisma.Decimal): number {
  * 对应 v1 `findAll` 聚合里 `$addFields.total_price`：`$round: { $multiply: [price, count] }`。
  * 先用 Decimal 做乘法再 `Math.round`，对应 Mongo 对乘积做单参 `$round`（四舍五入到整数）。
  */
-export function lineRoundedTotal(price: Prisma.Decimal, count: number): number {
+export function lineRoundedTotal(
+  price: Prisma.Decimal,
+  count: Prisma.Decimal | number,
+): number {
   return Math.round(dec(price).mul(count).toNumber());
 }
 
 /**
  * 对应 v1 管道末尾 `$addFields.origin_total_price`：`$multiply` 不经 $round。
  */
-export function lineOriginTotal(price: Prisma.Decimal, count: number): number {
+export function lineOriginTotal(
+  price: Prisma.Decimal,
+  count: Prisma.Decimal | number,
+): number {
   return dec(price).mul(count).toNumber();
 }
 
@@ -104,7 +110,7 @@ export function aggregateOrderLinesForUi(
       id: row.id,
       orderId: row.orderId,
       commodityId: row.commodityId,
-      count: row.count,
+      count: decimalToNumber(row.count),
       price: decimalToNumber(row.price),
       desc: row.desc,
       deleted: row.deleted,

@@ -1,32 +1,17 @@
-"use client";
-
-import type { AnalyticsGranularity } from "@/lib/analytics/workbench";
-
 type WorkbenchFiltersProps = {
   from: string;
   to: string;
-  granularity: AnalyticsGranularity;
   rangeLabel: string;
   onFromChange: (value: string) => void;
   onToChange: (value: string) => void;
-  onGranularityChange: (value: AnalyticsGranularity) => void;
 };
-
-const granularities: Array<{ value: AnalyticsGranularity; label: string }> = [
-  { value: "day", label: "按天" },
-  { value: "week", label: "按周" },
-  { value: "month", label: "按月" },
-  { value: "year", label: "按年" },
-];
 
 export function WorkbenchFilters({
   from,
   to,
-  granularity,
   rangeLabel,
   onFromChange,
   onToChange,
-  onGranularityChange,
 }: WorkbenchFiltersProps) {
   return (
     <section
@@ -40,7 +25,7 @@ export function WorkbenchFilters({
           当前范围：{rangeLabel}
         </p>
       </div>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm">
           开始日期
           <input
@@ -60,21 +45,6 @@ export function WorkbenchFilters({
             className="rounded border px-3 py-2"
             style={{ borderColor: "var(--border)", background: "var(--surface)" }}
           />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          时间粒度
-          <select
-            value={granularity}
-            onChange={(event) => onGranularityChange(event.target.value as AnalyticsGranularity)}
-            className="rounded border px-3 py-2"
-            style={{ borderColor: "var(--border)", background: "var(--surface)" }}
-          >
-            {granularities.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
-              </option>
-            ))}
-          </select>
         </label>
       </div>
     </section>

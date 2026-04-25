@@ -39,17 +39,20 @@ export function OrderDetailTable({ lines, onEdit, onDelete }: Props) {
   const columns: TableColumnProps<OrderDetailTableRow>[] = [
     {
       title: "分类",
+      fixed: "left",
+      width: 132,
       render: (_, row, index) => ({
         children: row.category.name,
         props: { rowSpan: categorySpans[index] },
       }),
     },
-    { title: "名称", render: (_, row) => row.commodity.name },
-    { title: "数量", dataIndex: "count" },
-    { title: "单位", render: (_, row) => row.unit.name },
-    { title: "单价", dataIndex: "price" },
+    { title: "名称", width: 128, render: (_, row) => row.commodity.name },
+    { title: "数量", width: 96, dataIndex: "count" },
+    { title: "单位", width: 96, render: (_, row) => row.unit.name },
+    { title: "单价", width: 108, dataIndex: "price" },
     {
       title: "金额",
+      width: 108,
       render: (_, row) =>
         row.line_total !== row.total_price ? (
           <Typography.Text type="error">{row.line_total}</Typography.Text>
@@ -57,9 +60,10 @@ export function OrderDetailTable({ lines, onEdit, onDelete }: Props) {
           <Typography.Text>{row.line_total}</Typography.Text>
         ),
     },
-    { title: "备注", render: (_, row) => row.desc ?? "—" },
+    { title: "备注", width: 168, render: (_, row) => row.desc ?? "—" },
     {
       title: "分类金额",
+      width: 112,
       render: (_, row, index) => ({
         children: row.total_category_price,
         props: { rowSpan: categoryAmountSpans[index] },
@@ -67,6 +71,7 @@ export function OrderDetailTable({ lines, onEdit, onDelete }: Props) {
     },
     {
       title: "总金额",
+      width: 112,
       render: (_, row, index) => ({
         children: <Typography.Text bold>{row.total_order_price}</Typography.Text>,
         props: { rowSpan: orderTotalSpans[index] },
@@ -74,8 +79,12 @@ export function OrderDetailTable({ lines, onEdit, onDelete }: Props) {
     },
     {
       title: "操作",
+      fixed: "right",
+      width: 112,
+      cellStyle: { paddingLeft: 12, paddingRight: 12 },
+      headerCellStyle: { paddingLeft: 12, paddingRight: 12 },
       render: (_, row) => (
-        <Space>
+        <Space size={12}>
           <Button type="text" onClick={() => onEdit(row)}>编辑</Button>
           <Button type="text" status="danger" onClick={() => onDelete(row.id)}>删除</Button>
         </Space>
@@ -90,6 +99,7 @@ export function OrderDetailTable({ lines, onEdit, onDelete }: Props) {
       data={lines}
       pagination={false}
       borderCell
+      scroll={{ x: 1172 }}
       style={{ borderRadius: 10, overflow: "hidden" }}
     />
   );

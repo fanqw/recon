@@ -5,31 +5,35 @@ import { WorkbenchChart } from "@/components/analytics/WorkbenchChart";
 import { WorkbenchEmptyState } from "@/components/analytics/WorkbenchEmptyState";
 import { WorkbenchFilters } from "@/components/analytics/WorkbenchFilters";
 import { WorkbenchKpis } from "@/components/analytics/WorkbenchKpis";
-import { barOption, pieOption, trendOption } from "@/components/analytics/workbench-options";
+import {
+  horizontalBarOption,
+  pieOption,
+  stackedBarOption,
+  stackedTrendOption,
+} from "@/components/analytics/workbench-options";
 import type {
+  AnalyticsCategoryStack,
   AnalyticsDimensionRow,
-  AnalyticsGranularity,
   AnalyticsKpis,
-  AnalyticsTrendBucket,
+  AnalyticsTrendSeries,
 } from "@/lib/analytics/workbench";
 import { useEffect, useMemo, useState } from "react";
 
 type WorkbenchResponse = {
   filters: {
     range: { from: string; to: string; label: string };
-    granularity: AnalyticsGranularity;
   };
   kpis: AnalyticsKpis;
-  byCategory: AnalyticsDimensionRow[];
-  byCommodity: AnalyticsDimensionRow[];
-  byPurchasePlace: AnalyticsDimensionRow[];
-  trend: AnalyticsTrendBucket[];
+  topCommodities: AnalyticsDimensionRow[];
+  categoryShare: AnalyticsDimensionRow[];
+  purchasePlaceShare: AnalyticsDimensionRow[];
+  categoryStacks: AnalyticsCategoryStack;
+  trend: AnalyticsTrendSeries;
 };
 
 const emptyData: WorkbenchResponse = {
   filters: {
     range: { from: "", to: "", label: "最近一个月" },
-    granularity: "day",
   },
   kpis: {
     totalAmount: 0,
@@ -37,10 +41,11 @@ const emptyData: WorkbenchResponse = {
     lineCount: 0,
     averageOrderAmount: 0,
   },
-  byCategory: [],
-  byCommodity: [],
-  byPurchasePlace: [],
-  trend: [],
+  topCommodities: [],
+  categoryShare: [],
+  purchasePlaceShare: [],
+  categoryStacks: { categories: [], series: [] },
+  trend: { labels: [], series: [] },
 };
 
 function toDateInput(value: string): string {
@@ -48,14 +53,17 @@ function toDateInput(value: string): string {
   return value.slice(0, 10);
 }
 
-function hasChartData(rows: Array<{ amount: number }>): boolean {
+function hasRowChartData(rows: Array<{ amount: number }>): boolean {
   return rows.some((row) => row.amount > 0);
+}
+
+function hasSeriesData(series: Array<{ values: number[] }>): boolean {
+  return series.some((item) => item.values.some((value) => value > 0));
 }
 
 export default function WorkspacePage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [granularity, setGranularity] = useState<AnalyticsGranularity>("day");
   const [data, setData] = useState<WorkbenchResponse>(emptyData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +73,6 @@ export default function WorkspacePage() {
     const params = new URLSearchParams();
     if (from) params.set("from", from);
     if (to) params.set("to", to);
-    params.set("granularity", granularity);
 
     async function load() {
       setLoading(true);
@@ -84,7 +91,6 @@ export default function WorkspacePage() {
         setData(next);
         if (!from) setFrom(toDateInput(next.filters.range.from));
         if (!to) setTo(toDateInput(next.filters.range.to));
-        setGranularity(next.filters.granularity);
       } catch (e) {
         if ((e as Error).name !== "AbortError") {
           setError("加载工作台数据失败");
@@ -96,16 +102,15 @@ export default function WorkspacePage() {
 
     void load();
     return () => controller.abort();
-  }, [from, granularity, to]);
+  }, [from, to]);
 
   const options = useMemo(
     () => ({
-      categoryBar: barOption("分类金额", data.byCategory),
-      commodityBar: barOption("商品金额 Top 50", data.byCommodity),
-      purchasePlaceBar: barOption("进货地金额", data.byPurchasePlace),
-      trend: trendOption(data.trend),
-      categoryPie: pieOption("分类金额占比", data.byCategory),
-      purchasePlacePie: pieOption("进货地金额占比", data.byPurchasePlace),
+      trend: stackedTrendOption(data.trend),
+      categoryStack: stackedBarOption("分类金额与商品构成", data.categoryStacks),
+      commodityBar: horizontalBarOption("商品金额 Top 10", data.topCommodities),
+      categoryPie: pieOption("分类金额占比", data.categoryShare),
+      purchasePlacePie: pieOption("进货地金额占比", data.purchasePlaceShare),
     }),
     [data],
   );
@@ -117,11 +122,9 @@ export default function WorkspacePage() {
       <WorkbenchFilters
         from={from}
         to={to}
-        granularity={granularity}
         rangeLabel={data.filters.range.label}
         onFromChange={setFrom}
         onToChange={setTo}
-        onGranularityChange={setGranularity}
       />
 
       {error ? <div className="rounded border border-red-300 p-3 text-red-600">{error}</div> : null}
@@ -131,46 +134,39 @@ export default function WorkspacePage() {
           <WorkbenchKpis kpis={data.kpis} />
           {noData ? <WorkbenchEmptyState /> : null}
           <section className="grid gap-3 xl:grid-cols-2" aria-label="工作台图表">
-            <Card className="dashboard-panel">
+            <Card className="dashboard-panel xl:col-span-2">
               <WorkbenchChart
                 label="总金额趋势"
                 option={options.trend}
-                empty={!hasChartData(data.trend)}
+                empty={!hasSeriesData(data.trend.series)}
               />
             </Card>
             <Card className="dashboard-panel">
               <WorkbenchChart
-                label="分类金额"
-                option={options.categoryBar}
-                empty={!hasChartData(data.byCategory)}
-              />
-            </Card>
-            <Card className="dashboard-panel">
-              <WorkbenchChart
-                label="商品金额 Top 50"
-                option={options.commodityBar}
-                empty={!hasChartData(data.byCommodity)}
-              />
-            </Card>
-            <Card className="dashboard-panel">
-              <WorkbenchChart
-                label="进货地金额"
-                option={options.purchasePlaceBar}
-                empty={!hasChartData(data.byPurchasePlace)}
+                label="分类金额与商品构成"
+                option={options.categoryStack}
+                empty={!hasSeriesData(data.categoryStacks.series)}
               />
             </Card>
             <Card className="dashboard-panel">
               <WorkbenchChart
                 label="分类金额占比"
                 option={options.categoryPie}
-                empty={!hasChartData(data.byCategory)}
+                empty={!hasRowChartData(data.categoryShare)}
+              />
+            </Card>
+            <Card className="dashboard-panel">
+              <WorkbenchChart
+                label="商品金额 Top 10"
+                option={options.commodityBar}
+                empty={!hasRowChartData(data.topCommodities)}
               />
             </Card>
             <Card className="dashboard-panel">
               <WorkbenchChart
                 label="进货地金额占比"
                 option={options.purchasePlacePie}
-                empty={!hasChartData(data.byPurchasePlace)}
+                empty={!hasRowChartData(data.purchasePlaceShare)}
               />
             </Card>
           </section>

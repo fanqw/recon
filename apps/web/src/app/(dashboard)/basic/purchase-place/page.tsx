@@ -10,12 +10,15 @@ import {
   Typography,
   type TableColumnProps,
 } from "@arco-design/web-react";
+import { FieldErrorText } from "@/components/form/FieldErrorText";
+import { RequiredFieldLabel } from "@/components/form/RequiredFieldLabel";
 import { ListTableEmptyState } from "@/components/list-table-empty";
 import {
   isDeleteBlockCode,
   messageForDeleteBlockCode,
 } from "@/lib/delete-block-codes";
 import { formatDateTime } from "@/lib/datetime";
+import { validatePurchasePlaceFields } from "@/lib/forms/master-data-validation";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
@@ -42,6 +45,9 @@ export default function PurchasePlacePage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<
+    Partial<Record<"place" | "marketName", string>>
+  >({});
 
   useEffect(() => {
     setQuery(urlQuery);
@@ -84,6 +90,11 @@ export default function PurchasePlacePage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    const nextErrors = validatePurchasePlaceFields({ place, marketName });
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      return;
+    }
     const payload = { place, marketName, desc: desc || undefined };
     const res = editingId
       ? await fetch(`/api/purchase-places/${editingId}`, {
@@ -109,6 +120,7 @@ export default function PurchasePlacePage() {
     setMarketName("");
     setDesc("");
     setEditingId(null);
+    setFieldErrors({});
     setModalOpen(false);
     await loadList();
   }
@@ -119,6 +131,7 @@ export default function PurchasePlacePage() {
     setMarketName("");
     setDesc("");
     setError(null);
+    setFieldErrors({});
     setModalOpen(true);
   }
 
@@ -128,6 +141,7 @@ export default function PurchasePlacePage() {
     setMarketName(row.marketName);
     setDesc(row.desc ?? "");
     setError(null);
+    setFieldErrors({});
     setModalOpen(true);
   }
 
@@ -149,27 +163,29 @@ export default function PurchasePlacePage() {
   }
 
   const columns: TableColumnProps<PurchasePlace>[] = [
-    { title: "进货地", dataIndex: "place", width: 180 },
+    { title: "进货地", dataIndex: "place", width: 180, fixed: "left" },
     { title: "市场名称", dataIndex: "marketName", width: 180 },
     { title: "备注", width: 240, render: (_, row) => row.desc ?? "—" },
     {
       title: "创建时间",
       dataIndex: "createdAt",
-      width: 170,
+      width: 156,
       render: (_, row) => formatDateTime(row.createdAt),
     },
     {
       title: "更新时间",
       dataIndex: "updatedAt",
-      width: 170,
+      width: 156,
       render: (_, row) => formatDateTime(row.updatedAt),
     },
     {
       title: "操作",
       fixed: "right",
-      width: 96,
+      width: 88,
+      cellStyle: { paddingLeft: 12, paddingRight: 12 },
+      headerCellStyle: { paddingLeft: 12, paddingRight: 12 },
       render: (_, row) => (
-        <Space size={4}>
+        <Space size={12}>
           <Button size="mini" type="text" onClick={() => openEdit(row)}>编辑</Button>
           <Button size="mini" status="danger" type="text" onClick={() => void removeRow(row.id)}>删除</Button>
         </Space>
@@ -178,18 +194,18 @@ export default function PurchasePlacePage() {
   ];
 
   return (
-    <Card
-      title={<Typography.Title heading={6}>进货地</Typography.Title>}
-      extra={<Button type="primary" onClick={openCreate}>新建</Button>}
-    >
+    <Card>
       {error ? <Typography.Text type="error">{error}</Typography.Text> : null}
-      <div className={error ? "my-3 max-w-md" : "mb-3 max-w-md"}>
-        <Input
-          allowClear
-          value={query}
-          onChange={handleQueryChange}
-          placeholder="搜索进货地、市场名称或备注"
-        />
+      <div className={error ? "my-3 flex items-center justify-between gap-3" : "mb-3 flex items-center justify-between gap-3"}>
+        <div className="max-w-md flex-1">
+          <Input
+            allowClear
+            value={query}
+            onChange={handleQueryChange}
+            placeholder="搜索进货地、市场名称或备注"
+          />
+        </div>
+        <Button type="primary" onClick={openCreate}>新建</Button>
       </div>
       <Table
         rowKey="id"
@@ -203,11 +219,35 @@ export default function PurchasePlacePage() {
 
       <Modal title={editingId ? "编辑进货地" : "新建进货地"} visible={modalOpen} onCancel={() => setModalOpen(false)} footer={null}>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <label className="text-sm text-[#4e5969]">进货地</label>
-          <Input value={place} onChange={setPlace} placeholder="请输入进货地" required />
-          <label className="text-sm text-[#4e5969]">市场名称</label>
-          <Input value={marketName} onChange={setMarketName} placeholder="请输入市场名称" required />
-          <label className="text-sm text-[#4e5969]">备注（可选）</label>
+          <RequiredFieldLabel htmlFor="purchase-place-name" label="进货地" />
+          <Input
+            id="purchase-place-name"
+            value={place}
+            onChange={(value) => {
+              setPlace(value);
+              if (fieldErrors.place && value.trim()) {
+                setFieldErrors((prev) => ({ ...prev, place: undefined }));
+              }
+            }}
+            placeholder="请输入进货地"
+            status={fieldErrors.place ? "error" : undefined}
+          />
+          <FieldErrorText message={fieldErrors.place} />
+          <RequiredFieldLabel htmlFor="purchase-place-market-name" label="市场名称" />
+          <Input
+            id="purchase-place-market-name"
+            value={marketName}
+            onChange={(value) => {
+              setMarketName(value);
+              if (fieldErrors.marketName && value.trim()) {
+                setFieldErrors((prev) => ({ ...prev, marketName: undefined }));
+              }
+            }}
+            placeholder="请输入市场名称"
+            status={fieldErrors.marketName ? "error" : undefined}
+          />
+          <FieldErrorText message={fieldErrors.marketName} />
+          <label className="form-field-label" htmlFor="purchase-place-desc">备注（可选）</label>
           <Input.TextArea value={desc} onChange={setDesc} placeholder="请输入备注" rows={3} />
           <div className="flex justify-end gap-2">
             <Button onClick={() => setModalOpen(false)}>取消</Button>
