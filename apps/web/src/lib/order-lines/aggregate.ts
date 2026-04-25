@@ -69,7 +69,7 @@ export function lineRoundedTotal(
 /**
  * 对应 v1 管道末尾 `$addFields.origin_total_price`：`$multiply` 不经 $round。
  */
-export function lineOriginTotal(
+function lineOriginTotal(
   price: Prisma.Decimal,
   count: Prisma.Decimal | number,
 ): number {

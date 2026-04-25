@@ -13,7 +13,7 @@ import {
 } from "@arco-design/web-react";
 import { FieldErrorText } from "@/components/form/FieldErrorText";
 import { RequiredFieldLabel } from "@/components/form/RequiredFieldLabel";
-import { ListTableEmptyState } from "@/components/list-table-empty";
+import { ListTableEmptyState } from "@/components/table/ListTableEmptyState";
 import { formatDateTime } from "@/lib/datetime";
 import { validateOrderFields } from "@/lib/forms/master-data-validation";
 import Link from "next/link";

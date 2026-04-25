@@ -40,18 +40,18 @@ export const workspaceNavEntries: WorkspaceNavEntry[] = [
   },
 ];
 
-export const workspaceHome: WorkspaceNavItem = workspaceNavEntries[0] as WorkspaceNavItem;
+const workspaceHome: WorkspaceNavItem = workspaceNavEntries[0] as WorkspaceNavItem;
 const orderDetailPrefix = "/order/list/";
 
 function isGroup(entry: WorkspaceNavEntry): entry is WorkspaceNavGroup {
   return "children" in entry;
 }
 
-export function flattenWorkspaceNavItems(): WorkspaceNavItem[] {
+function flattenWorkspaceNavItems(): WorkspaceNavItem[] {
   return workspaceNavEntries.flatMap((entry) => (isGroup(entry) ? entry.children : [entry]));
 }
 
-export function isPathInNavItem(pathname: string, item: WorkspaceNavItem): boolean {
+function isPathInNavItem(pathname: string, item: WorkspaceNavItem): boolean {
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 

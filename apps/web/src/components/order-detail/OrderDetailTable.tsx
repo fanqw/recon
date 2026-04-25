@@ -7,7 +7,7 @@ import {
   Typography,
   type TableColumnProps,
 } from "@arco-design/web-react";
-import { ListTableEmptyState } from "@/components/list-table-empty";
+import { ListTableEmptyState } from "@/components/table/ListTableEmptyState";
 import {
   computeCategoryAmountRowSpans,
   computeCategoryRowSpans,

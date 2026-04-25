@@ -29,11 +29,6 @@ export type AnalyticsDimensionRow = {
   share: number;
 };
 
-export type AnalyticsTrendBucket = {
-  label: string;
-  amount: number;
-};
-
 export type AnalyticsSeries = {
   name: string;
   values: number[];
