@@ -1,8 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { deserialize } from "bson";
 import {
+  deriveMongoOrderPurchasePlace,
   mapMongoCategory,
   mapMongoCommodity,
   mapMongoOrder,
@@ -14,7 +15,6 @@ import {
 type MongoDoc = Record<string, unknown>;
 
 const defaultDumpDir = "/Users/fanqw/Documents/生产环境mongo db/repository";
-const importedPurchasePlaceId = "legacy-mongo-import";
 
 function loadEnvFile(path: string): void {
   if (!existsSync(path)) return;
@@ -51,16 +51,11 @@ function batches<T>(items: T[], size: number): T[][] {
   return result;
 }
 
-function requireReplaceFlag(): void {
-  if (!process.argv.includes("--replace")) {
-    throw new Error(
-      "导入会清空当前 PostgreSQL 业务表和用户表。请显式传入 --replace 后重试。",
-    );
-  }
+function shouldReplaceBusinessData(): boolean {
+  return process.argv.includes("--replace");
 }
 
 async function main(): Promise<void> {
-  requireReplaceFlag();
   loadEnvFile(resolve(process.cwd(), ".env"));
 
   const dumpDir = resolve(
@@ -79,22 +74,22 @@ async function main(): Promise<void> {
   const commodities = readBsonDump("commodity", dumpDir).map((doc) =>
     mapMongoCommodity(doc as Parameters<typeof mapMongoCommodity>[0]),
   );
-  const orders = readBsonDump("order", dumpDir).map((doc) =>
-    mapMongoOrder(
+  const rawOrders = readBsonDump("order", dumpDir);
+  const purchasePlaceById = new Map<
+    string,
+    ReturnType<typeof deriveMongoOrderPurchasePlace>
+  >();
+  const orders = rawOrders.map((doc) => {
+    const purchasePlace = deriveMongoOrderPurchasePlace(
+      doc as Parameters<typeof deriveMongoOrderPurchasePlace>[0],
+    );
+    purchasePlaceById.set(purchasePlace.id, purchasePlace);
+    return mapMongoOrder(
       doc as Parameters<typeof mapMongoOrder>[0],
-      importedPurchasePlaceId,
-    ),
-  );
-  const users = readBsonDump("users", dumpDir).map((doc) => ({
-    id: objectIdString(doc._id as Parameters<typeof objectIdString>[0]),
-    username: String(doc.username),
-    passwordHash: String(doc.password),
-    createdAt: (doc.createdAt as Date | undefined) ?? new Date(0),
-    updatedAt:
-      (doc.updatedAt as Date | undefined) ??
-      (doc.createdAt as Date | undefined) ??
-      new Date(0),
-  }));
+      purchasePlace.id,
+    );
+  });
+  const dumpUsers = readBsonDump("users", dumpDir);
 
   const validCommodityIds = new Set(commodities.map((item) => item.id));
   const validOrderIds = new Set(orders.map((item) => item.id));
@@ -118,36 +113,49 @@ async function main(): Promise<void> {
 
   await prisma.$transaction(
     async (tx) => {
-      await tx.$executeRawUnsafe(`
-        TRUNCATE TABLE
-          "OrderCommodity",
-          "Order",
-          "Commodity",
-          "Category",
-          "Unit",
-          "PurchasePlace",
-          "User"
-        RESTART IDENTITY CASCADE
-      `);
+      if (shouldReplaceBusinessData()) {
+        await tx.$executeRawUnsafe(`
+          TRUNCATE TABLE
+            "OrderCommodity",
+            "Order",
+            "Commodity",
+            "Category",
+            "Unit",
+            "PurchasePlace"
+          RESTART IDENTITY CASCADE
+        `);
+      }
 
-      await tx.user.createMany({ data: users });
-      await tx.category.createMany({ data: categories });
-      await tx.unit.createMany({ data: units });
-      await tx.purchasePlace.create({
-        data: {
-          id: importedPurchasePlaceId,
-          place: "历史导入",
-          marketName: "生产 MongoDB 导入",
-          desc: `来源目录：${basename(dumpDir)}`,
+      await tx.category.createMany({
+        data: categories,
+        skipDuplicates: true,
+      });
+      await tx.unit.createMany({
+        data: units,
+        skipDuplicates: true,
+      });
+      await tx.purchasePlace.createMany({
+        data: Array.from(purchasePlaceById.values()).map((item) => ({
+          ...item,
           createdAt: new Date(0),
           updatedAt: new Date(0),
-        },
+        })),
+        skipDuplicates: true,
       });
-      await tx.commodity.createMany({ data: commodities });
-      await tx.order.createMany({ data: orders });
+      await tx.commodity.createMany({
+        data: commodities,
+        skipDuplicates: true,
+      });
+      await tx.order.createMany({
+        data: orders,
+        skipDuplicates: true,
+      });
 
       for (const chunk of batches(orderCommodities, 1_000)) {
-        await tx.orderCommodity.createMany({ data: chunk });
+        await tx.orderCommodity.createMany({
+          data: chunk,
+          skipDuplicates: true,
+        });
       }
     },
     { timeout: 60_000 },
@@ -159,15 +167,19 @@ async function main(): Promise<void> {
     JSON.stringify(
       {
         imported: {
-          users: users.length,
+          users: 0,
           categories: categories.length,
           units: units.length,
-          purchasePlaces: 1,
+          purchasePlaces: purchasePlaceById.size,
           commodities: commodities.length,
           orders: orders.length,
           orderCommodities: orderCommodities.length,
         },
+        preserved: {
+          users: "现有用户未清空、未覆盖",
+        },
         skipped: {
+          users: dumpUsers.length,
           orderCommodities: skippedOrderCommodities.map((doc) => ({
             id: objectIdString(
               doc._id as Parameters<typeof objectIdString>[0],

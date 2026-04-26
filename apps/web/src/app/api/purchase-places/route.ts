@@ -42,7 +42,7 @@ export async function GET(req: Request) {
           }
         : {}),
     },
-    orderBy: { updatedAt: "desc" },
+    orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
   });
   return NextResponse.json({ items: rows });
 }

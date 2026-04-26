@@ -50,7 +50,7 @@ export async function GET(req: Request) {
         : {}),
     },
     include: { purchasePlace: true },
-    orderBy: { updatedAt: "desc" },
+    orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
   });
   return NextResponse.json({ items });
 }

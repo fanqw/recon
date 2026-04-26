@@ -74,4 +74,23 @@ describe("aggregateOrderLinesForUi", () => {
     expect(out[0].total_order_price).toBe(32);
     expect(out[0].total_category_price).toBe(32);
   });
+
+  it("keeps refund lines as negative amounts in category and order totals", () => {
+    const rows = [
+      fakeRow({
+        price: "-15",
+        count: 2,
+        lineTotal: "-30",
+        categoryId: "cat-a",
+        categoryName: "水果",
+      }),
+    ];
+
+    const out = aggregateOrderLinesForUi(rows);
+
+    expect(out[0].total_price).toBe(-30);
+    expect(out[0].line_total).toBe(-30);
+    expect(out[0].total_category_price).toBe(-30);
+    expect(out[0].total_order_price).toBe(-30);
+  });
 });

@@ -14,6 +14,10 @@ import {
 import { FieldErrorText } from "@/components/form/FieldErrorText";
 import { RequiredFieldLabel } from "@/components/form/RequiredFieldLabel";
 import { ListTableEmptyState } from "@/components/table/ListTableEmptyState";
+import {
+  COMPACT_TABLE_SIZE,
+  createCompactTablePagination,
+} from "@/components/table/tableDefaults";
 import { formatDateTime } from "@/lib/datetime";
 import { validateOrderFields } from "@/lib/forms/master-data-validation";
 import Link from "next/link";
@@ -237,7 +241,17 @@ export default function OrderListPage() {
   }
 
   const columns: TableColumnProps<Order>[] = [
-    { title: "名称", dataIndex: "name", width: 180, fixed: "left" },
+    {
+      title: "名称",
+      dataIndex: "name",
+      width: 180,
+      fixed: "left",
+      render: (_, row) => (
+        <Link href={`/order/list/${row.id}`} className="text-[#165dff] hover:underline">
+          {row.name}
+        </Link>
+      ),
+    },
     {
       title: "进货地",
       width: 240,
@@ -245,16 +259,16 @@ export default function OrderListPage() {
     },
     { title: "备注", width: 220, render: (_, row) => row.desc ?? "—" },
     {
-      title: "创建时间",
-      dataIndex: "createdAt",
-      width: 156,
-      render: (_, row) => formatDateTime(row.createdAt),
-    },
-    {
       title: "更新时间",
       dataIndex: "updatedAt",
       width: 156,
       render: (_, row) => formatDateTime(row.updatedAt),
+    },
+    {
+      title: "创建时间",
+      dataIndex: "createdAt",
+      width: 156,
+      render: (_, row) => formatDateTime(row.createdAt),
     },
     {
       title: "操作",
@@ -300,7 +314,8 @@ export default function OrderListPage() {
         loading={loading}
         columns={columns}
         data={items}
-        pagination={{ pageSize: 10, showTotal: true }}
+        size={COMPACT_TABLE_SIZE}
+        pagination={createCompactTablePagination()}
         scroll={{ x: 1056 }}
         noDataElement={<ListTableEmptyState />}
       />

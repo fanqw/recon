@@ -109,7 +109,7 @@ describe("validateOrderLineFields", () => {
       commodity: "请选择商品或输入商品名称",
       category: "请选择分类或输入分类名称",
       unit: "请选择单位或输入单位名称",
-      count: "数量须为正整数",
+      count: "数量不能为 0",
       price: "请输入单价",
       lineTotal: "请输入总金额",
     });
@@ -124,6 +124,32 @@ describe("validateOrderLineFields", () => {
         lineCount: "2",
         linePrice: "3.5",
         lineTotal: "7",
+      }),
+    ).toEqual({});
+  });
+
+  it("allows refund lines with negative price and line total", () => {
+    expect(
+      validateOrderLineFields({
+        commoditySelected: true,
+        categorySelected: true,
+        unitSelected: true,
+        lineCount: "2",
+        linePrice: "-15",
+        lineTotal: "-30",
+      }),
+    ).toEqual({});
+  });
+
+  it("allows decimal and negative non-zero quantities for production adjustments", () => {
+    expect(
+      validateOrderLineFields({
+        commoditySelected: true,
+        categorySelected: true,
+        unitSelected: true,
+        lineCount: "-1.5",
+        linePrice: "20",
+        lineTotal: "-30",
       }),
     ).toEqual({});
   });

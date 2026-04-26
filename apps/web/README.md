@@ -79,10 +79,16 @@ seed 行为：
 生产 MongoDB `mongodump` 导出的 `.bson.gz` 文件可通过以下命令导入当前 Prisma/PostgreSQL 数据库：
 
 ```bash
+pnpm --filter web db:import:mongo -- --dump-dir=/path/to/repository
+```
+
+默认行为为追加/幂等导入：保留现有用户，不清空业务表，保留 Mongo `_id` 作为 v2 字符串主键，并跳过已导入过的重复主键。若需要替换当前业务数据但仍保留现有用户，可显式增加 `--replace`：
+
+```bash
 pnpm --filter web db:import:mongo -- --replace --dump-dir=/path/to/repository
 ```
 
-导入脚本会清空 `User`、订单、订单明细、商品、分类、单位与进货地表，保留 Mongo `_id` 作为 v2 字符串主键；v1 没有进货地字段，旧订单统一挂到 `历史导入 / 生产 MongoDB 导入`。执行前请确认 `apps/web/.env` 指向正确目标库。
+导入脚本会尝试从 v1 订单备注中拆解进货地，例如 `幸福城 25.2.27 洛阳` 会拆为 `进货地=洛阳`、`市场名称=幸福城`；无法拆解时挂到 `历史导入 / 生产 MongoDB 导入`。执行前请确认 `apps/web/.env` 指向正确目标库。生产退款类明细中的负单价/负金额会按原始业务含义保留。
 
 当前中文语义化样本包括：
 

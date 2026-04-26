@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 
 const patchSchema = z.object({
-  count: z.number().int().positive().optional(),
+  count: z.number().finite().refine((value) => value !== 0).optional(),
   price: z.union([z.number(), z.string()]).optional(),
   lineTotal: z.union([z.number(), z.string()]).optional(),
   desc: z.string().optional(),

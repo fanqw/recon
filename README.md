@@ -48,7 +48,7 @@
 
 1. **依赖服务**：在仓库根目录使用 Docker Compose 启动 PostgreSQL / Redis（具体文件以仓库内 `compose` 配置为准）。
 2. **应用环境变量**：将仓库根目录 `.env.example` 复制为 `apps/web/.env`，按本地环境填写 `DATABASE_URL`、`SESSION_SECRET`（长度须符合 iron-session 要求，通常不少于 32 字符）等。
-3. **数据库**：在仓库根目录依次执行 `pnpm db:migrate`（或等效的 Prisma migrate）、`pnpm db:seed` 写入管理员与语义化中文 mock 数据（会先清空历史业务数据，再写入主数据与订单样例）。如需导入 v1 MongoDB `mongodump` 导出的 `.bson.gz` 数据，可执行 `pnpm --filter web db:import:mongo -- --replace --dump-dir=/path/to/repository`；该命令会清空当前 Web 数据库后导入，须确认目标库无保留需求。
+3. **数据库**：在仓库根目录依次执行 `pnpm db:migrate`（或等效的 Prisma migrate）、`pnpm db:seed` 写入管理员与语义化中文 mock 数据（会先清空历史业务数据，再写入主数据与订单样例）。如需导入 v1 MongoDB `mongodump` 导出的 `.bson.gz` 数据，可执行 `pnpm --filter web db:import:mongo -- --dump-dir=/path/to/repository` 追加导入；如需替换当前业务数据但保留现有用户，可增加 `--replace`。
 4. **开发**：`pnpm dev` 启动全栈应用（默认由 `apps/web` 提供 Next.js 开发服务器）。
 5. **测试**：
    - `pnpm test`：运行 Vitest（含 `src/**/*.test.ts`；API 集成测试会在无可用开发服务时尝试在本机随机端口启动 `next dev`，需可读 `apps/web/.env` 中的 `DATABASE_URL`）。

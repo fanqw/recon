@@ -8,6 +8,7 @@ import {
   type TableColumnProps,
 } from "@arco-design/web-react";
 import { ListTableEmptyState } from "@/components/table/ListTableEmptyState";
+import { COMPACT_TABLE_SIZE } from "@/components/table/tableDefaults";
 import {
   computeCategoryAmountRowSpans,
   computeCategoryRowSpans,
@@ -19,11 +20,12 @@ export type OrderDetailTableRow = ExcelOrderLine & { id: string; commodityId: st
 
 type Props = {
   lines: OrderDetailTableRow[];
+  title: string;
   onEdit: (row: OrderDetailTableRow) => void;
   onDelete: (lineId: string) => void;
 };
 
-export function OrderDetailTable({ lines, onEdit, onDelete }: Props) {
+export function OrderDetailTable({ lines, title, onEdit, onDelete }: Props) {
   const categorySpans = computeCategoryRowSpans(lines);
   const categoryAmountSpans = computeCategoryAmountRowSpans(lines);
   const orderTotalSpans = computeOrderTotalRowSpans(lines.length);
@@ -93,14 +95,20 @@ export function OrderDetailTable({ lines, onEdit, onDelete }: Props) {
   ];
 
   return (
-    <Table
-      rowKey="id"
-      columns={columns}
-      data={lines}
-      pagination={false}
-      borderCell
-      scroll={{ x: 1172 }}
-      style={{ borderRadius: 10, overflow: "hidden" }}
-    />
+    <div className="overflow-hidden rounded-[10px] border border-[#e5e6eb]">
+      <div className="border-b border-[#e5e6eb] py-2 text-center text-base font-medium text-[var(--foreground)]">
+        {title}
+      </div>
+      <Table
+        rowKey="id"
+        columns={columns}
+        data={lines}
+        size={COMPACT_TABLE_SIZE}
+        pagination={false}
+        borderCell
+        scroll={{ x: 1172 }}
+        style={{ borderRadius: 0 }}
+      />
+    </div>
   );
 }

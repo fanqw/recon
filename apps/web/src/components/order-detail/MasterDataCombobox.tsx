@@ -6,6 +6,7 @@ import {
   buildMasterDataComboboxOptions,
   type MasterDataListItem,
 } from "@/lib/master-data/combobox-options";
+import { RequiredFieldLabel } from "@/components/form/RequiredFieldLabel";
 
 export type { MasterDataListItem } from "@/lib/master-data/combobox-options";
 
@@ -22,6 +23,7 @@ type Props = {
   onChange: (v: MasterDataSelection) => void;
   onPickCommodity?: (row: MasterDataListItem) => void;
   placeholder?: string;
+  required?: boolean;
   testId?: string;
 };
 
@@ -33,6 +35,7 @@ export function MasterDataCombobox({
   onChange,
   onPickCommodity,
   placeholder = "输入关键字搜索或选择",
+  required = false,
   testId,
 }: Props) {
   const [query, setQuery] = useState("");
@@ -87,7 +90,11 @@ export function MasterDataCombobox({
 
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-sm text-[#4e5969]">{label}</label>
+      {required ? (
+        <RequiredFieldLabel label={label} />
+      ) : (
+        <label className="text-sm text-[#4e5969]">{label}</label>
+      )}
       <Select
         showSearch
         allowClear

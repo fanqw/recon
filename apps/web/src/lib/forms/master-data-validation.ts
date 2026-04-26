@@ -111,9 +111,9 @@ export function validateOrderLineFields(values: OrderLineFieldValues): OrderLine
     errors.unit = "请选择单位或输入单位名称";
   }
 
-  const count = Number.parseInt(values.lineCount, 10);
-  if (Number.isNaN(count) || count < 1) {
-    errors.count = "数量须为正整数";
+  const count = Number.parseFloat(values.lineCount);
+  if (Number.isNaN(count) || count === 0) {
+    errors.count = "数量不能为 0";
   }
 
   if (!values.linePrice.trim()) {

@@ -17,7 +17,7 @@ import {
 
 const postSchema = z.object({
   orderId: z.string().min(1),
-  count: z.number().int().positive(),
+  count: z.number().finite().refine((value) => value !== 0),
   price: z.union([z.number(), z.string()]),
   lineTotal: z.union([z.number(), z.string()]).optional(),
   desc: z.string().optional(),

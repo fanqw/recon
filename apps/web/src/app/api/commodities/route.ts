@@ -51,7 +51,7 @@ export async function GET(req: Request) {
           }
         : {}),
     },
-    orderBy: { updatedAt: "desc" },
+    orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
     include: { category: true, unit: true },
   });
   return NextResponse.json({ items: rows });

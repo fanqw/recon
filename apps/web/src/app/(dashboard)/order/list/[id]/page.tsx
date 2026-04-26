@@ -13,8 +13,10 @@ import { ListTableEmptyState } from "@/components/table/ListTableEmptyState";
 import { validateOrderLineFields } from "@/lib/forms/master-data-validation";
 import {
   calculateEditableLineTotal,
+  calculateEditableUnitPrice,
   hasManualLineTotalOverride,
 } from "@/lib/order-lines/line-total";
+import { buildOrderDetailTableTitle } from "@/lib/order-detail/title";
 import {
   MasterDataCombobox,
   type MasterDataListItem,
@@ -33,6 +35,7 @@ type OrderHead = {
   id: string;
   name: string;
   desc: string | null;
+  createdAt: string;
   purchasePlace: {
     id: string;
     place: string;
@@ -107,7 +110,7 @@ export default function OrderDetailPage() {
     void refresh();
   }, [refresh]);
 
-  const countNum = parseInt(lineCount, 10);
+  const countNum = parseFloat(lineCount);
   const priceNum = parseFloat(linePrice);
   const autoTotal = calculateEditableLineTotal(countNum, priceNum);
 
@@ -121,6 +124,20 @@ export default function OrderDetailPage() {
     }
     setLineTotalInput(formatLineTotal(autoTotal));
   }, [countNum, priceNum, autoTotal, lineTotalManuallyEdited]);
+
+  useEffect(() => {
+    if (!lineTotalManuallyEdited) {
+      return;
+    }
+    const manualTotal = parseFloat(lineTotalInput);
+    if (Number.isNaN(countNum) || Number.isNaN(manualTotal)) {
+      return;
+    }
+    const nextPrice = calculateEditableUnitPrice(countNum, manualTotal);
+    if (nextPrice !== 0) {
+      setLinePrice(formatLineTotal(nextPrice));
+    }
+  }, [countNum, lineTotalInput, lineTotalManuallyEdited]);
 
   function resetLineForm() {
     setCategorySel(null);
@@ -136,25 +153,44 @@ export default function OrderDetailPage() {
   }
 
   function validateNewLineMasterNames(): string | null {
-    if (commoditySel?.kind === "id") return null;
     if (commoditySel?.kind === "free") {
       if (!trimOrEmpty(commoditySel.text)) return "商品名称不能为空";
-    } else {
+    } else if (commoditySel?.kind !== "id") {
       return "请选择商品或输入名称并选择当前输入选项";
     }
-    if (categorySel?.kind === "id") return null;
     if (categorySel?.kind === "free") {
       if (!trimOrEmpty(categorySel.text)) return "分类名称不能为空";
-    } else {
+    } else if (categorySel?.kind !== "id") {
       return "请选择分类或输入名称并选择当前输入选项";
     }
-    if (unitSel?.kind === "id") return null;
     if (unitSel?.kind === "free") {
       if (!trimOrEmpty(unitSel.text)) return "单位名称不能为空";
-    } else {
+    } else if (unitSel?.kind !== "id") {
       return "请选择单位或输入名称并选择当前输入选项";
     }
     return null;
+  }
+
+  function applyCurrentMasterSelections(body: Record<string, unknown>) {
+    if (commoditySel?.kind === "id") {
+      body.commodityName = commoditySel.label;
+    } else if (commoditySel?.kind === "free") {
+      body.commodityName = trimOrEmpty(commoditySel.text);
+    }
+
+    if (categorySel?.kind === "id") {
+      body.categoryId = categorySel.id;
+    } else if (categorySel?.kind === "free") {
+      body.categoryName = trimOrEmpty(categorySel.text);
+    }
+
+    if (unitSel?.kind === "id") {
+      body.unitId = unitSel.id;
+    } else if (unitSel?.kind === "free") {
+      body.unitName = trimOrEmpty(unitSel.text);
+    } else {
+      return;
+    }
   }
 
   async function handleLineSubmit(e: React.FormEvent) {
@@ -173,7 +209,7 @@ export default function OrderDetailPage() {
       return;
     }
 
-    const count = parseInt(lineCount, 10);
+    const count = parseFloat(lineCount);
     const price = parseFloat(linePrice);
     const lineTotalVal = parseFloat(lineTotalInput);
 
@@ -197,15 +233,7 @@ export default function OrderDetailPage() {
       }
 
       const body: Record<string, unknown> = { orderId, count, price, lineTotal: lineTotalVal, desc: lineDesc || undefined };
-      if (commoditySel?.kind === "id") {
-        body.commodityId = commoditySel.id;
-      } else if (commoditySel?.kind === "free") {
-        body.commodityName = trimOrEmpty(commoditySel.text);
-        if (categorySel?.kind === "id") body.categoryId = categorySel.id;
-        else if (categorySel?.kind === "free") body.categoryName = trimOrEmpty(categorySel.text);
-        if (unitSel?.kind === "id") body.unitId = unitSel.id;
-        else if (unitSel?.kind === "free") body.unitName = trimOrEmpty(unitSel.text);
-      }
+      applyCurrentMasterSelections(body);
 
       const res = await fetch("/api/order-lines", {
         method: "POST",
@@ -293,28 +321,10 @@ export default function OrderDetailPage() {
     );
   }
 
+  const tableTitle = buildOrderDetailTableTitle(order);
+
   return (
     <div className="space-y-3">
-      <Card>
-        <div className="grid min-w-0 gap-x-4 gap-y-2 text-sm md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-          <div className="flex min-w-0 gap-1">
-            <Typography.Text type="secondary" className="shrink-0">订单名：</Typography.Text>
-            <Typography.Text className="min-w-0 truncate font-medium">{order.name}</Typography.Text>
-          </div>
-          <div className="flex min-w-0 gap-1">
-            <Typography.Text type="secondary" className="shrink-0">进货地：</Typography.Text>
-            <Typography.Text className="min-w-0 truncate">
-              {order.purchasePlace.place} / {order.purchasePlace.marketName}
-            </Typography.Text>
-          </div>
-          <div className="flex min-w-0 gap-1 md:col-span-2">
-            <Typography.Text type="secondary" className="shrink-0">备注：</Typography.Text>
-            <Typography.Text className="min-w-0 truncate">{order.desc || "—"}</Typography.Text>
-          </div>
-        </div>
-        {error ? <Typography.Text type="error" className="mt-2 block">{error}</Typography.Text> : null}
-      </Card>
-
       <Card>
         <div className="flex flex-wrap gap-2">
           <Link href="/order/list">
@@ -323,15 +333,24 @@ export default function OrderDetailPage() {
           <Button type="primary" onClick={startCreateLine}>新增商品</Button>
           <Button onClick={() => void handleExportExcel()} loading={exporting} disabled={lines.length === 0}>导出 Excel</Button>
         </div>
+        {error ? <Typography.Text type="error" className="mt-2 block">{error}</Typography.Text> : null}
       </Card>
 
       {lines.length === 0 ? (
         <Card>
+          <Typography.Title heading={6} className="mb-3 text-center">
+            {tableTitle}
+          </Typography.Title>
           <ListTableEmptyState message="暂无商品，请点击「新增商品」添加。" />
         </Card>
       ) : (
         <Card>
-          <OrderDetailTable lines={lines} onEdit={startEditLine} onDelete={(id) => void removeLine(id)} />
+          <OrderDetailTable
+            lines={lines}
+            title={tableTitle}
+            onEdit={startEditLine}
+            onDelete={(id) => void removeLine(id)}
+          />
         </Card>
       )}
 
@@ -349,6 +368,7 @@ export default function OrderDetailPage() {
               }
             }}
             onPickCommodity={onPickCommodity}
+            required
             testId="order-line-commodity-select"
           />
           <FieldErrorText message={lineFieldErrors.commodity} />
@@ -363,6 +383,7 @@ export default function OrderDetailPage() {
                 setLineFieldErrors((prev) => ({ ...prev, category: undefined }));
               }
             }}
+            required
             testId="order-line-category-select"
           />
           <FieldErrorText message={lineFieldErrors.category} />
@@ -377,6 +398,7 @@ export default function OrderDetailPage() {
                 setLineFieldErrors((prev) => ({ ...prev, unit: undefined }));
               }
             }}
+            required
             testId="order-line-unit-select"
           />
           <FieldErrorText message={lineFieldErrors.unit} />
@@ -385,9 +407,11 @@ export default function OrderDetailPage() {
           <Input
             id="order-line-count"
             type="number"
+            placeholder="请输入数量"
             value={lineCount}
             onChange={(value) => {
               setLineCount(value);
+              setLineTotalManuallyEdited(false);
               if (lineFieldErrors.count && value.trim()) {
                 setLineFieldErrors((prev) => ({ ...prev, count: undefined }));
               }
@@ -399,9 +423,11 @@ export default function OrderDetailPage() {
           <Input
             id="order-line-price"
             type="number"
+            placeholder="请输入单价，退款可填负数"
             value={linePrice}
             onChange={(value) => {
               setLinePrice(value);
+              setLineTotalManuallyEdited(false);
               if (lineFieldErrors.price && value.trim()) {
                 setLineFieldErrors((prev) => ({ ...prev, price: undefined }));
               }
@@ -413,6 +439,7 @@ export default function OrderDetailPage() {
           <Input
             id="order-line-total"
             type="number"
+            placeholder="请输入总金额，退款可填负数"
             value={lineTotalInput}
             onChange={(value) => {
               setLineTotalInput(value);

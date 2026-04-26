@@ -16,6 +16,8 @@ apps/web/.env.*
 # 测试与报告
 coverage/
 playwright-report/
+.playwright-cli/
+output/
 test-results/
 *.log
 

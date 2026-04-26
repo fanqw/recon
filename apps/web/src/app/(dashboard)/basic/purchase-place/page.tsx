@@ -14,6 +14,10 @@ import { FieldErrorText } from "@/components/form/FieldErrorText";
 import { RequiredFieldLabel } from "@/components/form/RequiredFieldLabel";
 import { ListTableEmptyState } from "@/components/table/ListTableEmptyState";
 import {
+  COMPACT_TABLE_SIZE,
+  createCompactTablePagination,
+} from "@/components/table/tableDefaults";
+import {
   isDeleteBlockCode,
   messageForDeleteBlockCode,
 } from "@/lib/delete-block-codes";
@@ -167,16 +171,16 @@ export default function PurchasePlacePage() {
     { title: "市场名称", dataIndex: "marketName", width: 180 },
     { title: "备注", width: 240, render: (_, row) => row.desc ?? "—" },
     {
-      title: "创建时间",
-      dataIndex: "createdAt",
-      width: 156,
-      render: (_, row) => formatDateTime(row.createdAt),
-    },
-    {
       title: "更新时间",
       dataIndex: "updatedAt",
       width: 156,
       render: (_, row) => formatDateTime(row.updatedAt),
+    },
+    {
+      title: "创建时间",
+      dataIndex: "createdAt",
+      width: 156,
+      render: (_, row) => formatDateTime(row.createdAt),
     },
     {
       title: "操作",
@@ -212,7 +216,8 @@ export default function PurchasePlacePage() {
         loading={loading}
         columns={columns}
         data={items}
-        pagination={{ pageSize: 10, showTotal: true }}
+        size={COMPACT_TABLE_SIZE}
+        pagination={createCompactTablePagination()}
         scroll={{ x: 1036 }}
         noDataElement={<ListTableEmptyState />}
       />
