@@ -1,24 +1,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
-import { jsonResponseForPrismaUniqueViolation } from "@/lib/prisma-errors";
-import { messageForDeleteBlockCode } from "@/lib/delete-block-codes";
+import { guardAuth } from "@/lib/auth";
+import { handlePrismaError } from "@/lib/prisma-errors";
+import { guardCategoryDelete } from "@/lib/delete-guards";
 
 const patchSchema = z.object({
   name: z.string().min(1).optional(),
   desc: z.string().optional(),
 });
-
-async function guard() {
-  try {
-    await requireUser();
-  } catch (e) {
-    const status = (e as Error & { status?: number }).status ?? 401;
-    return NextResponse.json({ error: "未授权" }, { status });
-  }
-  return null;
-}
 
 /**
  * GET /api/categories/[id]：获取单条分类（未删除）。
@@ -27,7 +17,7 @@ export async function GET(
   _req: Request,
   ctx: { params: Promise<{ id: string }> }
 ) {
-  const unauthorized = await guard();
+  const unauthorized = await guardAuth();
   if (unauthorized) return unauthorized;
   const { id } = await ctx.params;
   const row = await prisma.category.findFirst({
@@ -44,7 +34,7 @@ export async function PATCH(
   req: Request,
   ctx: { params: Promise<{ id: string }> }
 ) {
-  const unauthorized = await guard();
+  const unauthorized = await guardAuth();
   if (unauthorized) return unauthorized;
   const { id } = await ctx.params;
   const json = await req.json().catch(() => null);
@@ -75,7 +65,7 @@ export async function PATCH(
     });
     return NextResponse.json({ item: row });
   } catch (e) {
-    const conflict = jsonResponseForPrismaUniqueViolation(e);
+    const conflict = handlePrismaError(e);
     if (conflict) return conflict;
     throw e;
   }
@@ -88,7 +78,7 @@ export async function DELETE(
   _req: Request,
   ctx: { params: Promise<{ id: string }> }
 ) {
-  const unauthorized = await guard();
+  const unauthorized = await guardAuth();
   if (unauthorized) return unauthorized;
   const { id } = await ctx.params;
   const existing = await prisma.category.findFirst({
@@ -96,18 +86,8 @@ export async function DELETE(
   });
   if (!existing) return NextResponse.json({ error: "未找到" }, { status: 404 });
 
-  const inUse = await prisma.commodity.findFirst({
-    where: { categoryId: id, deleted: false },
-  });
-  if (inUse) {
-    return NextResponse.json(
-      {
-        code: "CATEGORY_IN_USE",
-        error: messageForDeleteBlockCode("CATEGORY_IN_USE"),
-      },
-      { status: 409 }
-    );
-  }
+  const blocked = await guardCategoryDelete(id);
+  if (blocked) return blocked;
   await prisma.category.update({ where: { id }, data: { deleted: true } });
   return NextResponse.json({ ok: true });
 }

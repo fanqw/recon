@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireUser } from "@/lib/auth";
+import { guardAuth } from "@/lib/auth";
 import {
   buildAnalyticsWorkbench,
   parseAnalyticsFilters,
@@ -7,20 +7,12 @@ import {
 } from "@/lib/analytics/workbench";
 import { prisma } from "@/lib/prisma";
 
-function unauthorizedResponse(e: unknown) {
-  const status = (e as Error & { status?: number }).status ?? 401;
-  return NextResponse.json({ error: "未授权" }, { status });
-}
-
 /**
  * GET /api/analytics/workbench：返回工作台统计数据。
  */
 export async function GET(req: Request) {
-  try {
-    await requireUser();
-  } catch (e) {
-    return unauthorizedResponse(e);
-  }
+  const unauth = await guardAuth();
+  if (unauth) return unauth;
 
   const { searchParams } = new URL(req.url);
   const filters = parseAnalyticsFilters({
@@ -40,6 +32,7 @@ export async function GET(req: Request) {
     include: {
       purchasePlace: true,
       orderCommodities: {
+        where: { deleted: false },
         include: {
           commodity: {
             include: {

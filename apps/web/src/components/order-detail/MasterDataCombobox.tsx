@@ -43,28 +43,34 @@ export function MasterDataCombobox({
   const [items, setItems] = useState<MasterDataListItem[]>([]);
 
   useEffect(() => {
+    const controller = new AbortController();
     const t = setTimeout(() => {
       void (async () => {
         setLoading(true);
         try {
           const q = query.trim();
           const url = q.length > 0 ? `${apiPath}?q=${encodeURIComponent(q)}` : apiPath;
-          const res = await fetch(url, { credentials: "include" });
-          // 非 2xx 或 JSON 解析失败时清空候选，避免把错误页/HTML 当成列表数据
+          const res = await fetch(url, {
+            credentials: "include",
+            signal: controller.signal,
+          });
           if (!res.ok) {
             setItems([]);
             return;
           }
           const data = (await res.json()) as { items?: MasterDataListItem[] };
           setItems(Array.isArray(data.items) ? data.items : []);
-        } catch {
-          setItems([]);
+        } catch (e) {
+          if ((e as Error).name !== "AbortError") setItems([]);
         } finally {
           setLoading(false);
         }
       })();
-    }, 280);
-    return () => clearTimeout(t);
+    }, 150);
+    return () => {
+      clearTimeout(t);
+      controller.abort();
+    };
   }, [apiPath, query]);
 
   const selectedValue =

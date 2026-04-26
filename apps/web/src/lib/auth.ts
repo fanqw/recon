@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import { prisma } from "./prisma";
 import { getSession } from "./session";
 
@@ -24,4 +25,21 @@ export async function requireUser() {
     throw err;
   }
   return user;
+}
+
+/**
+ * Route Handler 认证守卫：未登录返回 401 响应，已登录返回 null。
+ *
+ * @example
+ * const unauth = await guardAuth();
+ * if (unauth) return unauth;
+ */
+export async function guardAuth(): Promise<NextResponse | null> {
+  try {
+    await requireUser();
+    return null;
+  } catch (e) {
+    const status = (e as Error & { status?: number }).status ?? 401;
+    return NextResponse.json({ error: "未授权" }, { status });
+  }
 }

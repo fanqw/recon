@@ -3,6 +3,7 @@ export const DELETE_BLOCK_CODES = [
   "UNIT_IN_USE",
   "COMMODITY_IN_USE",
   "PURCHASE_PLACE_IN_USE",
+  "ORDER_HAS_LINES",
 ] as const;
 
 export type DeleteBlockCode = (typeof DELETE_BLOCK_CODES)[number];
@@ -12,6 +13,7 @@ const DELETE_BLOCK_MESSAGE_MAP: Record<DeleteBlockCode, string> = {
   UNIT_IN_USE: "该单位已被关联，无法删除",
   COMMODITY_IN_USE: "该商品已被关联，无法删除",
   PURCHASE_PLACE_IN_USE: "该进货地已被关联，无法删除",
+  ORDER_HAS_LINES: "订单下存在明细，请先删除所有明细再删除订单",
 };
 
 export function isDeleteBlockCode(v: unknown): v is DeleteBlockCode {

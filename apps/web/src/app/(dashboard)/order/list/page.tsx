@@ -19,6 +19,7 @@ import {
   createCompactTablePagination,
 } from "@/components/table/tableDefaults";
 import { formatDateTime } from "@/lib/datetime";
+import { isDeleteBlockCode, messageForDeleteBlockCode } from "@/lib/delete-block-codes";
 import { validateOrderFields } from "@/lib/forms/master-data-validation";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -28,7 +29,7 @@ type Order = {
   id: string;
   name: string;
   desc: string | null;
-  purchasePlace: PurchasePlace;
+  purchasePlace: PurchasePlace | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -74,6 +75,9 @@ export default function OrderListPage() {
   const searchParams = useSearchParams();
   const urlQuery = searchParams.get("q") ?? "";
   const [items, setItems] = useState<Order[]>([]);
+  const [total, setTotal] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [purchasePlaces, setPurchasePlaces] = useState<PurchasePlace[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState(urlQuery);
@@ -102,23 +106,26 @@ export default function OrderListPage() {
     setQuery(urlQuery);
   }, [urlQuery]);
 
-  const loadList = useCallback(async () => {
+  const loadList = useCallback(async (page = currentPage, size = pageSize) => {
     setLoading(true);
     setError(null);
     try {
       const q = query.trim();
-      const url = q ? `/api/orders?q=${encodeURIComponent(q)}` : "/api/orders";
-      const res = await fetch(url, { credentials: "include" });
+      const params = new URLSearchParams({ page: String(page), pageSize: String(size) });
+      if (q) params.set("q", encodeURIComponent(q));
+      const res = await fetch(`/api/orders?${params.toString()}`, { credentials: "include" });
       const data = await res.json();
       if (!res.ok) {
         setError((data as { error?: string }).error ?? "加载失败");
         return;
       }
-      setItems((data as { items: Order[] }).items ?? []);
+      const resp = data as { items: Order[]; total: number };
+      setItems(resp.items ?? []);
+      setTotal(resp.total ?? 0);
     } finally {
       setLoading(false);
     }
-  }, [query]);
+  }, [query, currentPage, pageSize]);
 
   const loadPurchasePlaces = useCallback(async () => {
     const res = await fetch("/api/purchase-places", { credentials: "include" });
@@ -138,6 +145,7 @@ export default function OrderListPage() {
   }, [loadList, loadPurchasePlaces]);
 
   function handleQueryChange(value: string) {
+    setCurrentPage(1);
     setQuery(value);
     const params = new URLSearchParams(searchParams.toString());
     const q = value.trim();
@@ -173,7 +181,7 @@ export default function OrderListPage() {
     return item.id;
   }
 
-  async function handleCreate(e: React.FormEvent) {
+  async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     const nextErrors = validateOrderFields({ name, purchasePlace, marketName });
@@ -181,8 +189,12 @@ export default function OrderListPage() {
     if (Object.keys(nextErrors).length > 0) {
       return;
     }
-    const resolvedPurchasePlaceId = await ensurePurchasePlaceId(purchasePlace, marketName);
-    if (!resolvedPurchasePlaceId) return;
+    let resolvedPurchasePlaceId: string | undefined;
+    if (purchasePlace.trim() || marketName.trim()) {
+      const pid = await ensurePurchasePlaceId(purchasePlace, marketName);
+      if (!pid) return;
+      resolvedPurchasePlaceId = pid;
+    }
 
     const res = await fetch("/api/orders", {
       method: "POST",
@@ -190,7 +202,7 @@ export default function OrderListPage() {
       credentials: "include",
       body: JSON.stringify({
         name,
-        purchasePlaceId: resolvedPurchasePlaceId,
+        ...(resolvedPurchasePlaceId ? { purchasePlaceId: resolvedPurchasePlaceId } : {}),
         desc: desc || undefined,
       }),
     });
@@ -209,7 +221,7 @@ export default function OrderListPage() {
   }
 
   async function removeRow(row: Order) {
-    if (!confirm(`确定删除订单「${row.name}」及其明细？`)) return;
+    if (!confirm(`确定删除订单「${row.name}」？\n订单下存在明细时将无法删除，请先在订单详情页删除所有明细。`)) return;
     setError(null);
     setDeletingId(row.id);
     try {
@@ -219,7 +231,9 @@ export default function OrderListPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError((data as { error?: string }).error ?? "删除订单失败");
+        const code = (data as { code?: unknown }).code;
+        if (isDeleteBlockCode(code)) setError(messageForDeleteBlockCode(code));
+        else setError((data as { error?: string }).error ?? "删除订单失败");
         return;
       }
       await loadList();
@@ -232,7 +246,11 @@ export default function OrderListPage() {
 
   function openCreate() {
     setError(null);
-    setName("");
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = today.getMonth() + 1;
+    const d = today.getDate();
+    setName(`${y}年${m}月${d}日`);
     setPurchasePlace("");
     setMarketName("");
     setDesc("");
@@ -255,7 +273,10 @@ export default function OrderListPage() {
     {
       title: "进货地",
       width: 240,
-      render: (_, row) => `${row.purchasePlace.place} / ${row.purchasePlace.marketName}`,
+      render: (_, row) =>
+        row.purchasePlace
+          ? `${row.purchasePlace.place} / ${row.purchasePlace.marketName}`
+          : "—",
     },
     { title: "备注", width: 220, render: (_, row) => row.desc ?? "—" },
     {
@@ -315,7 +336,17 @@ export default function OrderListPage() {
         columns={columns}
         data={items}
         size={COMPACT_TABLE_SIZE}
-        pagination={createCompactTablePagination()}
+        pagination={{
+          ...createCompactTablePagination(),
+          total,
+          current: currentPage,
+          pageSize,
+          onChange(page, size) {
+            setCurrentPage(page);
+            setPageSize(size);
+            void loadList(page, size);
+          },
+        }}
         scroll={{ x: 1056 }}
         noDataElement={<ListTableEmptyState />}
       />
@@ -336,7 +367,7 @@ export default function OrderListPage() {
             status={fieldErrors.name ? "error" : undefined}
           />
           <FieldErrorText message={fieldErrors.name} />
-          <RequiredFieldLabel htmlFor="order-purchase-place" label="进货地" />
+          <label className="form-field-label" htmlFor="order-purchase-place">进货地（可选）</label>
           <Select
             id="order-purchase-place"
             allowCreate
@@ -355,7 +386,7 @@ export default function OrderListPage() {
             }}
           />
           <FieldErrorText message={fieldErrors.purchasePlace} />
-          <RequiredFieldLabel htmlFor="order-market-name" label="市场名" />
+          <label className="form-field-label" htmlFor="order-market-name">市场名（可选）</label>
           <Select
             id="order-market-name"
             allowCreate

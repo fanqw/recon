@@ -8,6 +8,7 @@ import {
   Select,
   Space,
   Table,
+  Tooltip,
   Typography,
   type TableColumnProps,
 } from "@arco-design/web-react";
@@ -27,8 +28,8 @@ import { validateCommodityFields } from "@/lib/forms/master-data-validation";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-type Category = { id: string; name: string };
-type Unit = { id: string; name: string };
+type Category = { id: string; name: string; desc: string | null };
+type Unit = { id: string; name: string; desc: string | null };
 type Commodity = {
   id: string;
   name: string;
@@ -304,8 +305,26 @@ export default function CommodityPage() {
 
   const columns: TableColumnProps<Commodity>[] = [
     { title: "名称", dataIndex: "name", width: 180, fixed: "left" },
-    { title: "分类", width: 140, render: (_, row) => row.category.name },
-    { title: "单位", width: 120, render: (_, row) => row.unit.name },
+    {
+      title: "分类",
+      width: 140,
+      render: (_, row) =>
+        row.category.desc ? (
+          <Tooltip content={row.category.desc}>{row.category.name}</Tooltip>
+        ) : (
+          row.category.name
+        ),
+    },
+    {
+      title: "单位",
+      width: 120,
+      render: (_, row) =>
+        row.unit.desc ? (
+          <Tooltip content={row.unit.desc}>{row.unit.name}</Tooltip>
+        ) : (
+          row.unit.name
+        ),
+    },
     { title: "备注", width: 220, render: (_, row) => row.desc ?? "—" },
     {
       title: "更新时间",

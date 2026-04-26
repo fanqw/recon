@@ -76,7 +76,7 @@ export type AnalyticsSourceOrder = {
     id: string;
     place: string;
     marketName: string;
-  };
+  } | null;
   orderCommodities: AnalyticsSourceOrderLine[];
 };
 
@@ -275,8 +275,12 @@ function trendSeriesByPurchasePlace(
 
   for (const item of lines) {
     const label = trendLabel(item.orderCreatedAt, granularity);
-    const placeKey = `${item.purchasePlace.place}\u0000${item.purchasePlace.marketName}`;
-    const placeName = `${item.purchasePlace.place} / ${item.purchasePlace.marketName}`;
+    const placeKey = item.purchasePlace
+      ? `${item.purchasePlace.place}\u0000${item.purchasePlace.marketName}`
+      : ' 未指定进货地';
+    const placeName = item.purchasePlace
+      ? `${item.purchasePlace.place} / ${item.purchasePlace.marketName}`
+      : '未指定进货地';
     labelSet.add(label);
     const place = placeMap.get(placeKey) ?? {
       name: placeName,
@@ -366,8 +370,8 @@ export function buildAnalyticsWorkbench(
       name: item.line.commodity.category.name,
     })),
     purchasePlaceShare: dimensionRows(lines, (item) => ({
-      id: `${item.purchasePlace.place}\u0000${item.purchasePlace.marketName}`,
-      name: `${item.purchasePlace.place} / ${item.purchasePlace.marketName}`,
+      id: item.purchasePlace ? `${item.purchasePlace.place}\u0000${item.purchasePlace.marketName}` : '未指定进货地',
+      name: item.purchasePlace ? `${item.purchasePlace.place} / ${item.purchasePlace.marketName}` : '未指定进货地',
     })),
     categoryStacks: categoryCommodityStacks(lines),
     trend: trendSeriesByPurchasePlace(lines, filters.granularity),

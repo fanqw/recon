@@ -1,20 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { guardAuth } from "@/lib/auth";
 import {
   aggregateOrderLinesForUi,
   type OrderLineWithRelations,
 } from "@/lib/order-lines/aggregate";
-
-async function guard() {
-  try {
-    await requireUser();
-  } catch (e) {
-    const status = (e as Error & { status?: number }).status ?? 401;
-    return NextResponse.json({ error: "未授权" }, { status });
-  }
-  return null;
-}
 
 /**
  * GET /api/orders/[id]/lines：订单下未删除明细列表，含 v1 findAll 对齐的金额聚合字段。
@@ -25,7 +15,7 @@ export async function GET(
   _req: Request,
   ctx: { params: Promise<{ id: string }> }
 ) {
-  const unauthorized = await guard();
+  const unauthorized = await guardAuth();
   if (unauthorized) return unauthorized;
   const { id: orderId } = await ctx.params;
   const order = await prisma.order.findFirst({

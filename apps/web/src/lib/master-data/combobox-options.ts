@@ -33,7 +33,7 @@ export function buildMasterDataComboboxOptions({
   const normalizedQuery = normalizeQuery(query);
   const options: MasterDataComboboxOption[] = items.map((row) => ({
     value: `id:${row.id}`,
-    label: row.name,
+    label: row.unit ? `${row.name}(${row.unit.name})` : row.name,
     row,
   }));
 

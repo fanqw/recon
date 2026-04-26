@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { guardAuth } from "@/lib/auth";
 
 const patchSchema = z.object({
   count: z.number().finite().refine((value) => value !== 0).optional(),
@@ -11,16 +11,6 @@ const patchSchema = z.object({
   desc: z.string().optional(),
 });
 
-async function guard() {
-  try {
-    await requireUser();
-  } catch (e) {
-    const status = (e as Error & { status?: number }).status ?? 401;
-    return NextResponse.json({ error: "未授权" }, { status });
-  }
-  return null;
-}
-
 /**
  * PATCH /api/order-lines/[id]：更新明细数量、单价、行金额、备注。
  */
@@ -28,7 +18,7 @@ export async function PATCH(
   req: Request,
   ctx: { params: Promise<{ id: string }> },
 ) {
-  const unauthorized = await guard();
+  const unauthorized = await guardAuth();
   if (unauthorized) return unauthorized;
   const { id } = await ctx.params;
   const json = await req.json().catch(() => null);
@@ -74,7 +64,7 @@ export async function DELETE(
   _req: Request,
   ctx: { params: Promise<{ id: string }> },
 ) {
-  const unauthorized = await guard();
+  const unauthorized = await guardAuth();
   if (unauthorized) return unauthorized;
   const { id } = await ctx.params;
   const existing = await prisma.orderCommodity.findFirst({

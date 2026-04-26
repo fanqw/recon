@@ -66,13 +66,13 @@ model PurchasePlace {
 model Order {
   id              String   @id @default(cuid())
   name            String
-  purchasePlaceId String   @map("purchase_place_id")
+  purchasePlaceId String?  @map("purchase_place_id")
   desc            String?
   deleted         Boolean  @default(false)
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  purchasePlace    PurchasePlace    @relation(fields: [purchasePlaceId], references: [id], onDelete: Restrict)
+  purchasePlace    PurchasePlace?   @relation(fields: [purchasePlaceId], references: [id], onDelete: Restrict)
   orderCommodities OrderCommodity[]
 
   @@index([purchasePlaceId])

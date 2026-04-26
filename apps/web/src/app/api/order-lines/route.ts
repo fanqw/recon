@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { guardAuth } from "@/lib/auth";
 import {
   createOrderCommodityLine,
   createOrderCommodityLineTx,
@@ -29,21 +29,11 @@ const postSchema = z.object({
   unitName: z.string().optional(),
 });
 
-async function guard() {
-  try {
-    await requireUser();
-  } catch (e) {
-    const status = (e as Error & { status?: number }).status ?? 401;
-    return NextResponse.json({ error: "未授权" }, { status });
-  }
-  return null;
-}
-
 /**
  * POST /api/order-lines：在指定订单下新增明细；支持 commodityId 直连或主数据名称编排创建。
  */
 export async function POST(req: Request) {
-  const unauthorized = await guard();
+  const unauthorized = await guardAuth();
   if (unauthorized) return unauthorized;
   const json = await req.json().catch(() => null);
   const parsed = postSchema.safeParse(json);

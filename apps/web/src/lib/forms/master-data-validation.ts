@@ -72,12 +72,14 @@ export function validateOrderFields(values: OrderFieldValues): OrderFieldErrors 
     errors.name = "请输入订单名称";
   }
 
-  if (!values.purchasePlace.trim()) {
-    errors.purchasePlace = "请输入进货地";
-  }
-
-  if (!values.marketName.trim()) {
+  // 进货地与市场名称为选填，但若填了其中一个，另一个也必须填
+  const hasPlace = values.purchasePlace.trim().length > 0;
+  const hasMarket = values.marketName.trim().length > 0;
+  if (hasPlace && !hasMarket) {
     errors.marketName = "请输入市场名称";
+  }
+  if (hasMarket && !hasPlace) {
+    errors.purchasePlace = "请输入进货地";
   }
 
   return errors;
