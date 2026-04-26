@@ -4,6 +4,11 @@ import type {
   AnalyticsDimensionRow,
   AnalyticsTrendSeries,
 } from "@/lib/analytics/workbench";
+import type {
+  CommodityAmountBucket,
+  CommodityPriceBucket,
+  CommodityQuantityBucket,
+} from "@/lib/analytics/commodity";
 
 const chartColors = [
   "#2563EB",
@@ -112,6 +117,132 @@ export function stackedTrendOption(trend: AnalyticsTrendSeries): EChartsOption {
       itemStyle: { borderRadius: [4, 4, 0, 0] },
       data: seriesItem.values,
     })),
+  };
+}
+
+export function commodityPriceOption(
+  title: string,
+  buckets: CommodityPriceBucket[],
+): EChartsOption {
+  const labels = buckets.map((b) => b.label);
+  return {
+    color: chartColors,
+    title: { text: title, left: 8, top: 4, textStyle: { fontSize: 14 } },
+    tooltip: {
+      trigger: "axis",
+      formatter: (params) => {
+        const arr = Array.isArray(params) ? params : [params];
+        const label = String((arr[0] as unknown as Record<string, unknown>)?.axisValue ?? "");
+        return [
+          label,
+          ...arr.map(
+            (p) =>
+              `${String(p.seriesName ?? "")}: ¥${Number(p.value ?? 0).toFixed(2)}`,
+          ),
+        ].join("<br/>");
+      },
+    },
+    legend: { bottom: 0, data: ["最高价", "平均价", "最低价"] },
+    grid: { left: 48, right: 18, top: 48, bottom: 56 },
+    xAxis: { type: "category", data: labels, boundaryGap: false },
+    yAxis: { type: "value", axisLabel: { formatter: (v: number) => `¥${v}` } },
+    series: [
+      {
+        name: "最高价",
+        type: "line",
+        data: buckets.map((b) => b.max),
+        smooth: true,
+        symbol: "circle",
+        symbolSize: 5,
+        lineStyle: { width: 2 },
+        areaStyle: { opacity: 0.06 },
+      },
+      {
+        name: "平均价",
+        type: "line",
+        data: buckets.map((b) => b.avg),
+        smooth: true,
+        symbol: "circle",
+        symbolSize: 5,
+        lineStyle: { width: 2, type: "dashed" },
+      },
+      {
+        name: "最低价",
+        type: "line",
+        data: buckets.map((b) => b.min),
+        smooth: true,
+        symbol: "circle",
+        symbolSize: 5,
+        lineStyle: { width: 2 },
+        areaStyle: { opacity: 0.06 },
+      },
+    ],
+  };
+}
+
+export function commodityQuantityOption(
+  title: string,
+  buckets: CommodityQuantityBucket[],
+  unitName: string,
+): EChartsOption {
+  return {
+    color: chartColors,
+    title: { text: title, left: 8, top: 4, textStyle: { fontSize: 14 } },
+    tooltip: {
+      trigger: "axis",
+      axisPointer: { type: "shadow" },
+      valueFormatter: (v) => `${Number(v).toFixed(2)} ${unitName}`,
+    },
+    grid: { left: 56, right: 18, top: 48, bottom: 36 },
+    xAxis: { type: "category", data: buckets.map((b) => b.label) },
+    yAxis: {
+      type: "value",
+      axisLabel: { formatter: (v: number) => `${v} ${unitName}` },
+    },
+    series: [
+      {
+        type: "bar",
+        data: buckets.map((b) => b.quantity),
+        barMaxWidth: 28,
+        itemStyle: { borderRadius: [4, 4, 0, 0] },
+        label: {
+          show: buckets.length <= 14,
+          position: "top",
+          formatter: ({ value }) => `${Number(value).toFixed(2)}`,
+        },
+      },
+    ],
+  };
+}
+
+export function commodityAmountOption(
+  title: string,
+  buckets: CommodityAmountBucket[],
+): EChartsOption {
+  return {
+    color: chartColors,
+    title: { text: title, left: 8, top: 4, textStyle: { fontSize: 14 } },
+    tooltip: {
+      trigger: "axis",
+      axisPointer: { type: "shadow" },
+      valueFormatter: (v) => formatCurrency(Number(v)),
+    },
+    grid: { left: 56, right: 18, top: 48, bottom: 36 },
+    xAxis: { type: "category", data: buckets.map((b) => b.label) },
+    yAxis: { type: "value" },
+    series: [
+      {
+        type: "bar",
+        data: buckets.map((b) => b.amount),
+        barMaxWidth: 28,
+        itemStyle: { borderRadius: [4, 4, 0, 0] },
+        label: {
+          show: buckets.length <= 14,
+          position: "top",
+          formatter: ({ value }) => formatCurrency(Number(value)),
+        },
+      },
+    ],
   };
 }
 
